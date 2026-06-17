@@ -658,6 +658,133 @@ body {
 .meal-log-item { animation: slideIn .22s cubic-bezier(.34,1.56,.64,1); }
 .sugg-card { animation: fadeUp .32s ease; }
 
+/* ── LOGIN SCREEN ─────────────────────────────────────────────── */
+#login-screen {
+  position: fixed; inset: 0; z-index: 500;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 75% 50% at 50% -8%, rgba(139,92,246,.22) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 45% at 50% 110%, rgba(56,189,248,.1) 0%, transparent 60%);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; overflow-y: auto;
+}
+#login-screen.hidden { display: none; }
+.login-inner { width: 100%; max-width: 380px; animation: fadeUp .4s ease; }
+.login-brand { text-align: center; margin-bottom: 40px; }
+.login-logo {
+  font-size: 56px; margin-bottom: 10px;
+  filter: drop-shadow(0 6px 20px rgba(139,92,246,.5));
+}
+.login-app-name { font-size: 22px; font-weight: 900; letter-spacing: -.5px; }
+.login-view { text-align: center; }
+.login-heading { font-size: 24px; font-weight: 900; letter-spacing: -.5px; margin-bottom: 6px; }
+.login-sub { font-size: 14px; color: var(--muted); margin-bottom: 28px; font-weight: 500; }
+.login-back {
+  background: none; border: none; color: var(--muted);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  margin-bottom: 18px; display: inline-block; transition: color .15s;
+}
+.login-back:hover { color: var(--text); }
+
+/* Profile grid */
+.profile-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+.profile-card {
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 22px 14px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  transition: all .2s cubic-bezier(.34,1.56,.64,1);
+}
+.profile-card:hover {
+  border-color: rgba(139,92,246,.45); background: rgba(139,92,246,.08);
+  transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,.4);
+}
+.profile-card:active { transform: scale(.96); }
+.profile-card-emoji {
+  font-size: 40px; width: 68px; height: 68px; border-radius: 50%;
+  background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;
+}
+.profile-card-name { font-size: 14px; font-weight: 700; }
+.profile-card.add {
+  border-style: dashed; justify-content: center; color: var(--muted);
+}
+.profile-card.add .profile-card-emoji { background: transparent; color: var(--accent); }
+.profile-card.add:hover { color: var(--text); }
+
+/* PIN */
+.login-avatar {
+  font-size: 40px; width: 80px; height: 80px; border-radius: 50%;
+  background: rgba(139,92,246,.12); border: 1px solid rgba(139,92,246,.3);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px; box-shadow: 0 0 30px rgba(139,92,246,.25);
+}
+.pin-dots {
+  display: flex; gap: 16px; justify-content: center; margin-bottom: 36px;
+}
+.pin-dot {
+  width: 15px; height: 15px; border-radius: 50%;
+  border: 2px solid var(--border-mid); transition: all .2s cubic-bezier(.34,1.56,.64,1);
+}
+.pin-dot.filled {
+  background: var(--accent-grad); border-color: transparent;
+  transform: scale(1.15); box-shadow: 0 0 12px var(--accent-glow);
+}
+.pin-dots.shake { animation: shake .4s; }
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%,60% { transform: translateX(-9px); }
+  40%,80% { transform: translateX(9px); }
+}
+.pin-pad {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 14px;
+  max-width: 280px; margin: 0 auto;
+}
+.pin-key {
+  aspect-ratio: 1.35; border: 1px solid var(--border);
+  background: rgba(255,255,255,0.04); color: var(--text);
+  border-radius: var(--r); font-size: 24px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all .12s; user-select: none;
+}
+.pin-key:hover { background: rgba(255,255,255,0.08); border-color: var(--border-mid); }
+.pin-key:active { transform: scale(.92); background: rgba(139,92,246,.18); }
+.pin-key.empty { background: none; border: none; cursor: default; }
+.pin-key.action { font-size: 16px; color: var(--muted); }
+
+/* Create-profile name input */
+.login-name-input {
+  width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text); padding: 14px 16px;
+  font-size: 16px; outline: none; text-align: center; margin-bottom: 18px;
+  transition: border-color .2s;
+}
+.login-name-input:focus { border-color: rgba(139,92,246,.6); }
+.emoji-picker {
+  display: grid; grid-template-columns: repeat(6,1fr); gap: 8px; margin-bottom: 24px;
+}
+.emoji-opt {
+  aspect-ratio: 1; border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: rgba(255,255,255,0.03); font-size: 22px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all .15s;
+}
+.emoji-opt:hover { background: rgba(255,255,255,0.07); }
+.emoji-opt.selected { border-color: rgba(139,92,246,.6); background: rgba(139,92,246,.14); transform: scale(1.08); }
+
+/* ── PROFILE CHIP ─────────────────────────────────────────────── */
+.profile-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  border-radius: 22px; padding: 6px 12px 6px 7px; cursor: pointer;
+  transition: all .2s; flex-shrink: 0;
+}
+.profile-chip:hover { border-color: rgba(139,92,246,.45); background: rgba(139,92,246,.08); }
+.profile-chip-emoji {
+  font-size: 18px; width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center;
+}
+.profile-chip-name { font-size: 13px; font-weight: 700; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ── SCROLLBAR ────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -666,6 +793,43 @@ body {
 </head>
 <body>
 
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="login-screen">
+  <div class="login-inner">
+    <div class="login-brand">
+      <div class="login-logo">🥗</div>
+      <div class="login-app-name">Macro Tracker</div>
+    </div>
+
+    <!-- View: Profil-Auswahl -->
+    <div class="login-view" id="login-select">
+      <div class="login-heading">Wer bist du?</div>
+      <div class="login-sub">Wähle dein Profil aus</div>
+      <div class="profile-grid" id="profile-grid"></div>
+    </div>
+
+    <!-- View: Neues Profil (Name + Emoji) -->
+    <div class="login-view" id="login-create" style="display:none">
+      <button class="login-back" onclick="loginShowSelect()">← Zurück</button>
+      <div class="login-heading">Neues Profil</div>
+      <div class="login-sub">Wähle Name und Avatar</div>
+      <input type="text" class="login-name-input" id="create-name" placeholder="Dein Name" maxlength="20" oninput="updateCreateNext()">
+      <div class="emoji-picker" id="emoji-picker"></div>
+      <button class="btn-primary" id="create-next" onclick="createGoToPin()" disabled>Weiter →</button>
+    </div>
+
+    <!-- View: PIN eingeben / festlegen -->
+    <div class="login-view" id="login-pin" style="display:none">
+      <button class="login-back" onclick="loginShowSelect()">← Zurück</button>
+      <div class="login-avatar" id="pin-avatar">🙂</div>
+      <div class="login-heading" id="pin-name"></div>
+      <div class="login-sub" id="pin-prompt">PIN eingeben</div>
+      <div class="pin-dots" id="pin-dots"></div>
+      <div class="pin-pad" id="pin-pad"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== TAB: HEUTE ===== -->
 <div id="tab-today" class="tab active">
   <div class="page-header">
@@ -673,6 +837,10 @@ body {
       <div class="page-title">Heute</div>
       <div class="page-subtitle" id="today-date"></div>
     </div>
+    <button class="profile-chip" id="profile-chip" onclick="logout()" title="Profil wechseln">
+      <span class="profile-chip-emoji" id="profile-chip-emoji">🙂</span>
+      <span class="profile-chip-name" id="profile-chip-name"></span>
+    </button>
   </div>
   <div id="today-hero"></div>
   <button class="copy-day-btn" onclick="openCopyDay()">
@@ -1117,28 +1285,227 @@ let wData = {};
 let wStep = 1;
 const TOTAL_STEPS = 6;
 
+// ===== AUTH / MULTI-USER =====
+const USERS_KEY  = 'mt-users';      // [{ id, name, emoji, pinHash }]
+const LEGACY_KEY = 'macro-tracker'; // alte Single-User-Daten
+const EMPTY_DB   = () => ({ foods:[], log:{}, goals:{kcal:2000,protein:150,carbs:250,fat:65}, profile:null });
+const AVATARS    = ['🙂','💪','🏃','🥗','🔥','⭐','🦁','🐻','🦊','🐱','🦄','🌸','🏆','🎯','🚀','🍎','🥑','🧗'];
+
+let users        = [];     // Profil-Liste
+let currentUser  = null;   // aktives Profil-Objekt
+let pinBuffer    = '';     // aktuell eingetippter PIN
+let pinMode      = 'enter';// 'enter' | 'set' | 'confirm'
+let pinTarget    = null;   // Profil bei 'enter'
+let firstPin     = '';     // gemerkter PIN bei 'set' → 'confirm'
+let newProfile   = null;   // { name, emoji } während Erstellung
+
+function hashPin(pin) {
+  // Leichtgewichtiger Hash (clientseitig, keine echte Krypto möglich)
+  let h = 5381;
+  for (let i = 0; i < pin.length; i++) h = ((h << 5) + h + pin.charCodeAt(i)) >>> 0;
+  return 'h' + h.toString(36);
+}
+function loadUsers() {
+  try { users = JSON.parse(localStorage.getItem(USERS_KEY)) || []; }
+  catch(e) { users = []; }
+}
+function saveUsers() { localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
+function dataKey(id) { return 'mt-data-' + id; }
+
+function loadUserDB(id) {
+  try {
+    const raw = localStorage.getItem(dataKey(id));
+    db = raw ? Object.assign(EMPTY_DB(), JSON.parse(raw)) : EMPTY_DB();
+  } catch(e) { db = EMPTY_DB(); }
+}
+
 // ===== INIT =====
 function init() {
-  try {
-    const raw = localStorage.getItem('macro-tracker');
-    if (raw) db = Object.assign({ foods:[], log:{}, goals:{kcal:2000,protein:150,carbs:250,fat:65}, profile:null }, JSON.parse(raw));
-  } catch(e) {}
+  loadUsers();
+  document.querySelectorAll('.modal-overlay').forEach(o =>
+    o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); })
+  );
+  document.getElementById('lib-search').addEventListener('input', e => renderLibrary(e.target.value));
 
+  // Auto-Login wenn Sitzung aktiv
+  const sessionId = sessionStorage.getItem('mt-current');
+  if (sessionId && users.some(u => u.id === sessionId)) {
+    enterApp(users.find(u => u.id === sessionId));
+  } else {
+    showLogin();
+  }
+}
+
+function showLogin() {
+  document.getElementById('login-screen').classList.remove('hidden');
+  loadUsers();
+  if (users.length === 0) loginShowCreate();
+  else loginShowSelect();
+}
+
+function enterApp(user) {
+  currentUser = user;
+  sessionStorage.setItem('mt-current', user.id);
+  loadUserDB(user.id);
+
+  document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('today-date').textContent =
     new Date().toLocaleDateString('de-DE', { weekday:'long', day:'numeric', month:'long' });
+  document.getElementById('profile-chip-emoji').textContent = user.emoji;
+  document.getElementById('profile-chip-name').textContent  = user.name;
 
   renderToday();
   renderLibrary();
   renderBedarf();
   loadGoalsForm();
-
-  document.getElementById('lib-search').addEventListener('input', e => renderLibrary(e.target.value));
-  document.querySelectorAll('.modal-overlay').forEach(o =>
-    o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); })
-  );
 }
 
-function save() { localStorage.setItem('macro-tracker', JSON.stringify(db)); }
+function logout() {
+  sessionStorage.removeItem('mt-current');
+  currentUser = null;
+  showLogin();
+}
+
+// ── Login-Views ──────────────────────────────────────
+function loginShowSelect() {
+  loadUsers();
+  document.getElementById('login-create').style.display = 'none';
+  document.getElementById('login-pin').style.display    = 'none';
+  document.getElementById('login-select').style.display = 'block';
+
+  const grid = document.getElementById('profile-grid');
+  grid.innerHTML = users.map(u => `
+    <div class="profile-card" onclick="loginPickUser('${u.id}')">
+      <div class="profile-card-emoji">${u.emoji}</div>
+      <div class="profile-card-name">${esc(u.name)}</div>
+    </div>`).join('') + `
+    <div class="profile-card add" onclick="loginShowCreate()">
+      <div class="profile-card-emoji">+</div>
+      <div class="profile-card-name">Neues Profil</div>
+    </div>`;
+}
+
+function loginShowCreate() {
+  document.getElementById('login-select').style.display = 'none';
+  document.getElementById('login-pin').style.display    = 'none';
+  document.getElementById('login-create').style.display = 'block';
+
+  newProfile = { name: '', emoji: AVATARS[0] };
+  document.getElementById('create-name').value = '';
+  document.getElementById('create-next').disabled = true;
+  document.getElementById('emoji-picker').innerHTML = AVATARS.map((em, i) =>
+    `<div class="emoji-opt ${i===0?'selected':''}" onclick="pickEmoji(this,'${em}')">${em}</div>`
+  ).join('');
+}
+
+function pickEmoji(el, em) {
+  newProfile.emoji = em;
+  document.querySelectorAll('.emoji-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function updateCreateNext() {
+  const name = document.getElementById('create-name').value.trim();
+  newProfile.name = name;
+  document.getElementById('create-next').disabled = name.length < 1;
+}
+
+function createGoToPin() {
+  pinMode = 'set';
+  firstPin = '';
+  showPinView(newProfile.emoji, newProfile.name, 'PIN festlegen (4 Ziffern)');
+}
+
+function loginPickUser(id) {
+  pinTarget = users.find(u => u.id === id);
+  if (!pinTarget) return;
+  pinMode = 'enter';
+  showPinView(pinTarget.emoji, pinTarget.name, 'PIN eingeben');
+}
+
+function showPinView(emoji, name, prompt) {
+  document.getElementById('login-select').style.display = 'none';
+  document.getElementById('login-create').style.display = 'none';
+  document.getElementById('login-pin').style.display    = 'block';
+  document.getElementById('pin-avatar').textContent = emoji;
+  document.getElementById('pin-name').textContent   = name;
+  document.getElementById('pin-prompt').textContent = prompt;
+  pinBuffer = '';
+  renderPinDots();
+  renderPinPad();
+}
+
+function renderPinDots() {
+  const dots = document.getElementById('pin-dots');
+  dots.innerHTML = [0,1,2,3].map(i =>
+    `<div class="pin-dot ${i < pinBuffer.length ? 'filled' : ''}"></div>`
+  ).join('');
+}
+function renderPinPad() {
+  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  document.getElementById('pin-pad').innerHTML = keys.map(k => {
+    if (k === '')  return `<div class="pin-key empty"></div>`;
+    if (k === '⌫') return `<div class="pin-key action" onclick="pinDelete()">⌫</div>`;
+    return `<div class="pin-key" onclick="pinPress('${k}')">${k}</div>`;
+  }).join('');
+}
+function pinPress(d) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += d;
+  renderPinDots();
+  if (pinBuffer.length === 4) setTimeout(pinComplete, 180);
+}
+function pinDelete() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  renderPinDots();
+}
+function pinShakeReset() {
+  const dots = document.getElementById('pin-dots');
+  dots.classList.add('shake');
+  setTimeout(() => { dots.classList.remove('shake'); pinBuffer = ''; renderPinDots(); }, 420);
+}
+
+function pinComplete() {
+  if (pinMode === 'enter') {
+    if (hashPin(pinBuffer) === pinTarget.pinHash) {
+      enterApp(pinTarget);
+    } else {
+      document.getElementById('pin-prompt').textContent = 'Falscher PIN — erneut versuchen';
+      pinShakeReset();
+    }
+  } else if (pinMode === 'set') {
+    firstPin = pinBuffer;
+    pinMode = 'confirm';
+    document.getElementById('pin-prompt').textContent = 'PIN bestätigen';
+    pinBuffer = '';
+    renderPinDots();
+  } else if (pinMode === 'confirm') {
+    if (pinBuffer === firstPin) {
+      finishCreateProfile(hashPin(firstPin));
+    } else {
+      document.getElementById('pin-prompt').textContent = 'PINs stimmen nicht — neu festlegen';
+      pinMode = 'set'; firstPin = '';
+      pinShakeReset();
+    }
+  }
+}
+
+function finishCreateProfile(pinHash) {
+  const isFirst = users.length === 0;
+  const user = { id: uid(), name: newProfile.name, emoji: newProfile.emoji, pinHash };
+  users.push(user);
+  saveUsers();
+
+  // Erstes Profil: bestehende Single-User-Daten übernehmen
+  if (isFirst) {
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy) localStorage.setItem(dataKey(user.id), legacy);
+  }
+  enterApp(user);
+}
+
+function save() {
+  if (currentUser) localStorage.setItem(dataKey(currentUser.id), JSON.stringify(db));
+}
 function uid()  { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 function todayKey() {
   const d = new Date();
