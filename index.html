@@ -736,6 +736,27 @@ body {
     </div>
     <button class="btn-primary" onclick="saveGoals()">Ziele speichern</button>
   </div>
+
+  <!-- Daten Export / Import -->
+  <div style="margin-top:16px;display:flex;flex-direction:column;gap:10px">
+    <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:2px">Daten sichern</div>
+    <button class="btn-outline" onclick="exportData()" style="display:flex;align-items:center;justify-content:center;gap:8px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Daten exportieren (.json)
+    </button>
+    <label class="btn-outline" style="display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      Daten importieren
+      <input type="file" accept=".json" style="display:none" onchange="importData(event)">
+    </label>
+    <div id="import-status" style="display:none;font-size:13px;text-align:center;padding:8px;border-radius:var(--r-xs)"></div>
+  </div>
 </div>
 
 <!-- ===== BOTTOM NAV ===== -->
@@ -1821,6 +1842,48 @@ function saveGoals() {
   const orig = btn.textContent;
   btn.textContent = '✅ Gespeichert!';
   setTimeout(() => btn.textContent = orig, 1800);
+}
+
+// ===== EXPORT / IMPORT =====
+function exportData() {
+  const json = JSON.stringify(db, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'macro-tracker-backup.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const status = document.getElementById('import-status');
+    try {
+      const parsed = JSON.parse(ev.target.result);
+      if (!parsed.foods || !parsed.log || !parsed.goals) throw new Error('Ungültiges Format');
+      db = Object.assign({ foods:[], log:{}, goals:{kcal:2000,protein:150,carbs:250,fat:65}, profile:null }, parsed);
+      save();
+      renderToday();
+      renderLibrary();
+      loadGoalsForm();
+      status.style.display = 'block';
+      status.style.background = 'rgba(16,185,129,.12)';
+      status.style.color = 'var(--green)';
+      status.textContent = '✅ Daten erfolgreich importiert!';
+    } catch(err) {
+      status.style.display = 'block';
+      status.style.background = 'rgba(244,63,94,.12)';
+      status.style.color = 'var(--danger)';
+      status.textContent = '❌ Fehler: ' + err.message;
+    }
+    setTimeout(() => status.style.display = 'none', 3500);
+    e.target.value = '';
+  };
+  reader.readAsText(file);
 }
 
 // ===== BEDARF TAB =====
