@@ -1003,6 +1003,12 @@ body {
     </label>
     <div id="import-status" style="display:none;font-size:13px;text-align:center;padding:8px;border-radius:var(--r-xs)"></div>
   </div>
+
+  <!-- Cloud-Sync -->
+  <div style="margin-top:22px;display:flex;flex-direction:column;gap:10px">
+    <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:2px">☁️ Cloud-Sync</div>
+    <div id="cloud-box"></div>
+  </div>
 </div>
 
 <!-- ===== BOTTOM NAV ===== -->
@@ -1198,6 +1204,25 @@ body {
       Tippe auf einen Tag, um ihn anzusehen oder zu bearbeiten.
     </p>
     <div id="history-list" class="day-list"></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Cloud-Konflikt ===== -->
+<div class="modal-overlay" id="modal-cloud-conflict">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">☁️ Daten gefunden</span>
+      <button class="modal-close" onclick="closeModal('modal-cloud-conflict')">✕</button>
+    </div>
+    <p style="font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px">
+      In der Cloud sind bereits Daten gespeichert und auf diesem Gerät auch.
+      Was soll passieren? <b style="color:var(--text)">Die jeweils andere Seite wird überschrieben.</b>
+    </p>
+    <div id="cloud-conflict-info" style="font-size:12.5px;color:var(--muted);background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:16px;line-height:1.7"></div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn-primary" onclick="resolveCloudConflict('download')">☁️ → 📱 Cloud-Daten laden (lokale ersetzen)</button>
+      <button class="btn-outline" onclick="resolveCloudConflict('upload')">📱 → ☁️ Lokale Daten hochladen (Cloud ersetzen)</button>
+    </div>
   </div>
 </div>
 
@@ -1399,6 +1424,7 @@ body {
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ===== STATE =====
 let db = {
@@ -1449,7 +1475,7 @@ function loadUsers() {
   try { users = JSON.parse(localStorage.getItem(USERS_KEY)) || []; }
   catch(e) { users = []; }
 }
-function saveUsers() { localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
+function saveUsers() { localStorage.setItem(USERS_KEY, JSON.stringify(users)); cloudSyncSoon(); }
 function dataKey(id) { return 'mt-data-' + id; }
 
 function loadUserDB(id) {
@@ -1462,6 +1488,7 @@ function loadUserDB(id) {
 // ===== INIT =====
 function init() {
   loadUsers();
+  initCloud();
   document.querySelectorAll('.modal-overlay').forEach(o =>
     o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); })
   );
@@ -1645,6 +1672,222 @@ function finishCreateProfile(pinHash) {
 
 function save() {
   if (currentUser) localStorage.setItem(dataKey(currentUser.id), JSON.stringify(db));
+  cloudSyncSoon();
+}
+
+// ===== CLOUD SYNC (Supabase) =====
+const SB_URL = 'https://pxeejfowdivavcqbigsc.supabase.co';
+const SB_KEY = 'sb_publishable_LuAC5OCNqKdPYejuNjvbTA_1F_Fz1im';
+let sbClient       = null;
+let cloudUser      = null;   // logged-in Supabase auth user
+let cloudPushTimer = null;
+let cloudLastSync  = null;
+let cloudApplying  = false;  // suppress push while applying a pulled snapshot
+let cloudPendingRemote = null;
+
+function initCloud() {
+  if (window.supabase && !sbClient) {
+    try { sbClient = window.supabase.createClient(SB_URL, SB_KEY); } catch(e) { sbClient = null; }
+  }
+  renderCloudUI();
+  if (!sbClient) return;
+  sbClient.auth.getSession().then(({ data }) => {
+    if (data && data.session) {
+      cloudUser = data.session.user;
+      renderCloudUI();
+      cloudPull({ silent: true });   // cloud is the cross-device source of truth on startup
+    }
+  });
+}
+
+// Snapshot of the ENTIRE local dataset (all profiles + their data)
+function cloudSnapshot() {
+  const profiles = {};
+  users.forEach(u => {
+    const raw = localStorage.getItem(dataKey(u.id));
+    if (raw) { try { profiles[u.id] = JSON.parse(raw); } catch(e) {} }
+  });
+  return { v: 1, users, profiles, savedAt: new Date().toISOString() };
+}
+
+function applyCloudSnapshot(snap) {
+  if (!snap) return;
+  cloudApplying = true;
+  if (Array.isArray(snap.users)) { users = snap.users; saveUsers(); }
+  if (snap.profiles) {
+    Object.keys(snap.profiles).forEach(id =>
+      localStorage.setItem(dataKey(id), JSON.stringify(snap.profiles[id])));
+  }
+  setCloudMarker(snap.savedAt);
+  if (currentUser) {
+    if (users.some(u => u.id === currentUser.id)) { loadUserDB(currentUser.id); refreshAll(); }
+    else { cloudApplying = false; logout(); return; }
+  } else {
+    // On the login screen: refresh the profile picker so synced profiles appear immediately
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen && !loginScreen.classList.contains('hidden') && users.length) {
+      loginShowSelect();
+    }
+  }
+  cloudApplying = false;
+}
+
+function refreshAll() {
+  renderToday(); renderLibrary(); renderBedarf(); loadGoalsForm();
+}
+
+function cloudSyncSoon() {
+  if (!sbClient || !cloudUser || cloudApplying) return;
+  clearTimeout(cloudPushTimer);
+  cloudPushTimer = setTimeout(cloudPush, 1500);
+}
+
+function setCloudMarker(at) { if (at) localStorage.setItem('mt-cloud-synced-at', at); }
+
+async function cloudPush() {
+  if (!sbClient || !cloudUser) return;
+  setCloudStatus('Synchronisiere…');
+  const snap = cloudSnapshot();
+  const payload = { user_id: cloudUser.id, data: snap, updated_at: new Date().toISOString() };
+  const { error } = await sbClient.from('app_data').upsert(payload, { onConflict: 'user_id' });
+  if (error) { setCloudStatus('⚠️ Sync-Fehler: ' + error.message, true); return; }
+  setCloudMarker(snap.savedAt);
+  cloudLastSync = new Date();
+  renderCloudUI();
+}
+
+async function cloudPull(opts = {}) {
+  if (!sbClient || !cloudUser) return null;
+  const { data, error } = await sbClient.from('app_data')
+    .select('data').eq('user_id', cloudUser.id).maybeSingle();
+  if (error) { if (!opts.silent) setCloudStatus('⚠️ Fehler: ' + error.message, true); return null; }
+  if (!data || !data.data) { await cloudPush(); return null; }   // nothing in cloud yet → upload local
+  // If the cloud is exactly what this device last synced, keep local (avoids clobbering offline edits)
+  const remoteAt = data.data.savedAt;
+  if (opts.silent && remoteAt && remoteAt === localStorage.getItem('mt-cloud-synced-at')) return data.data;
+  applyCloudSnapshot(data.data);
+  cloudLastSync = new Date();
+  renderCloudUI();
+  return data.data;
+}
+
+function localHasData() {
+  return users.some(u => {
+    const raw = localStorage.getItem(dataKey(u.id));
+    if (!raw) return false;
+    try { const d = JSON.parse(raw); return (d.foods && d.foods.length) || (d.log && Object.keys(d.log).length); }
+    catch(e) { return false; }
+  });
+}
+
+// After login: decide load vs upload vs ask
+async function cloudAfterLogin() {
+  renderCloudUI();
+  const { data } = await sbClient.from('app_data')
+    .select('data').eq('user_id', cloudUser.id).maybeSingle();
+  const remote = data && data.data ? data.data : null;
+  const hasRemote = remote && (((remote.users||[]).length) || (remote.profiles && Object.keys(remote.profiles).length));
+  if (!hasRemote)      { await cloudPush(); return; }                 // first device → upload local
+  if (!localHasData()) { applyCloudSnapshot(remote); cloudLastSync = new Date(); renderCloudUI(); return; }
+  // Both sides have data → ask the user
+  cloudPendingRemote = remote;
+  const rProfiles = remote.profiles ? Object.keys(remote.profiles).length : 0;
+  const rDays = remote.profiles ? Object.values(remote.profiles).reduce((a,p)=>a+(p && p.log?Object.keys(p.log).length:0),0) : 0;
+  const lDays = users.reduce((a,u)=>{ try{const d=JSON.parse(localStorage.getItem(dataKey(u.id))||'{}');return a+(d.log?Object.keys(d.log).length:0);}catch(e){return a;} },0);
+  document.getElementById('cloud-conflict-info').innerHTML =
+    `☁️ <b style="color:var(--text)">Cloud:</b> ${rProfiles} Profil(e), ${rDays} getrackte Tage<br>` +
+    `📱 <b style="color:var(--text)">Dieses Gerät:</b> ${users.length} Profil(e), ${lDays} getrackte Tage`;
+  openModal('modal-cloud-conflict');
+}
+
+async function resolveCloudConflict(choice) {
+  closeModal('modal-cloud-conflict');
+  if (choice === 'download' && cloudPendingRemote) {
+    applyCloudSnapshot(cloudPendingRemote); cloudLastSync = new Date();
+  } else if (choice === 'upload') {
+    await cloudPush();
+  }
+  cloudPendingRemote = null;
+  renderCloudUI();
+}
+
+async function cloudSignUp() {
+  const email = document.getElementById('cloud-email').value.trim();
+  const pw    = document.getElementById('cloud-pw').value;
+  if (!validCloudCreds(email, pw)) return;
+  setCloudStatus('Registriere…');
+  const { data, error } = await sbClient.auth.signUp({ email, password: pw });
+  if (error) { setCloudStatus('⚠️ ' + error.message, true); return; }
+  if (!data.session) { setCloudStatus('📧 Bestätige deine E-Mail und logge dich dann ein.'); return; }
+  cloudUser = data.user;
+  await cloudAfterLogin();
+}
+
+async function cloudSignIn() {
+  const email = document.getElementById('cloud-email').value.trim();
+  const pw    = document.getElementById('cloud-pw').value;
+  if (!validCloudCreds(email, pw)) return;
+  setCloudStatus('Melde an…');
+  const { data, error } = await sbClient.auth.signInWithPassword({ email, password: pw });
+  if (error) { setCloudStatus('⚠️ ' + error.message, true); return; }
+  cloudUser = data.user;
+  await cloudAfterLogin();
+}
+
+async function cloudSignOut() {
+  if (!sbClient) return;
+  await sbClient.auth.signOut();
+  cloudUser = null; cloudLastSync = null;
+  renderCloudUI();
+}
+
+function validCloudCreds(email, pw) {
+  if (!email || !/.+@.+\..+/.test(email)) { setCloudStatus('⚠️ Bitte eine gültige E-Mail eingeben.', true); return false; }
+  if (!pw || pw.length < 6) { setCloudStatus('⚠️ Passwort muss mind. 6 Zeichen haben.', true); return false; }
+  return true;
+}
+
+function setCloudStatus(msg, isErr) {
+  const el = document.getElementById('cloud-status');
+  if (!el) return;
+  el.style.display = 'block';
+  el.style.color = isErr ? 'var(--danger)' : 'var(--muted)';
+  el.textContent = msg;
+}
+
+function renderCloudUI() {
+  const box = document.getElementById('cloud-box');
+  if (!box) return;
+  if (!sbClient) {
+    box.innerHTML = `<div style="font-size:13px;color:var(--muted);line-height:1.6">⚠️ Cloud-Bibliothek nicht geladen (offline?). Die lokale Speicherung läuft normal weiter.</div>`;
+    return;
+  }
+  if (cloudUser) {
+    const last = cloudLastSync ? cloudLastSync.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) : '–';
+    box.innerHTML = `
+      <div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.35);border-radius:var(--r-sm);padding:12px 14px;font-size:13px">
+        <div style="font-weight:700;color:var(--text)">✅ Synchronisiert</div>
+        <div style="color:var(--muted);margin-top:3px">${esc(cloudUser.email||'')}</div>
+        <div style="color:var(--muted);margin-top:2px;font-size:12px">Zuletzt: ${last}</div>
+      </div>
+      <button class="btn-outline" onclick="cloudPush()" style="font-size:13px">🔄 Jetzt synchronisieren</button>
+      <button class="btn-outline" onclick="cloudSignOut()" style="font-size:13px">Abmelden</button>
+      <div id="cloud-status" style="display:none;font-size:12.5px;text-align:center;padding:4px"></div>`;
+  } else {
+    box.innerHTML = `
+      <div style="font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:4px">
+        Melde dich an, damit deine Daten sicher in der Cloud liegen und auf allen Geräten synchron sind.
+      </div>
+      <input type="email" id="cloud-email" placeholder="E-Mail" autocomplete="email"
+             style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:11px 14px;font-size:14px;outline:none;width:100%">
+      <input type="password" id="cloud-pw" placeholder="Passwort (mind. 6 Zeichen)" autocomplete="current-password"
+             style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:11px 14px;font-size:14px;outline:none;width:100%">
+      <div style="display:flex;gap:10px">
+        <button class="btn-primary" onclick="cloudSignIn()" style="flex:1">Einloggen</button>
+        <button class="btn-outline" onclick="cloudSignUp()" style="flex:1">Registrieren</button>
+      </div>
+      <div id="cloud-status" style="display:none;font-size:12.5px;text-align:center;padding:4px"></div>`;
+  }
 }
 function uid()  { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 function dateKeyOf(d) {
