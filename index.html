@@ -1745,7 +1745,7 @@ function renderToday() {
     (a, e) => ({ kcal:a.kcal+e.kcal, protein:a.protein+e.protein, carbs:a.carbs+e.carbs, fat:a.fat+e.fat }),
     { kcal:0, protein:0, carbs:0, fat:0 }
   );
-  const g = db.goals;
+  const g = goalsForDate(viewKey());
 
   // ── Hero card ──────────────────────────────────────
   const eaten    = Math.round(tot.kcal);
@@ -2584,6 +2584,27 @@ function daysSince(dateKey) {
   const a = new Date(dateKey + 'T00:00:00'); a.setHours(0, 0, 0, 0);
   const b = new Date(); b.setHours(0, 0, 0, 0);
   return Math.round((b - a) / 86400000);
+}
+
+// Goals that were valid on a given day: derived from the weight in effect
+// on that date, so looking at a past day shows that day's targets — not the
+// current ones. The latest weigh-in period uses the live goals (db.goals).
+function goalsForDate(key) {
+  if (!db.profile) return db.goals;
+  const ws = getWeights();
+  if (!ws.length) return db.goals;
+
+  // Latest weigh-in dated on or before `key` (ws is sorted ascending).
+  let w = null;
+  for (const e of ws) { if (e.date <= key) w = e; else break; }
+  if (!w) w = ws[0];                       // before the first weigh-in → earliest known
+
+  // On/after the most recent weigh-in → the live goals already match.
+  if (w === ws[ws.length - 1]) return db.goals;
+
+  const needs  = computeNeeds({ ...db.profile, weight: w.kg });
+  const target = weightGoalMode() === 'diet' ? needs.diet : needs.maintenance;
+  return { kcal: target.kcal, protein: target.protein, carbs: target.carbs, fat: target.fat };
 }
 
 function weightSparkline(ws) {
