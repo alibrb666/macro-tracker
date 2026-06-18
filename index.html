@@ -625,10 +625,36 @@ body {
 
 /* ── COPY DAY MODAL ───────────────────────────────────────────── */
 .day-list { display: flex; flex-direction: column; gap: 8px; max-height: 65vh; overflow-y: auto; }
+.day-nav {
+  display: flex; align-items: stretch; gap: 8px; margin-bottom: 14px;
+}
+.day-nav-arrow {
+  flex: none; width: 42px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: rgba(255,255,255,.04); color: var(--text); font-size: 22px; line-height: 1;
+  cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center;
+}
+.day-nav-arrow:hover:not(:disabled) { border-color: rgba(139,92,246,.5); background: rgba(139,92,246,.1); }
+.day-nav-arrow:disabled { opacity: .3; cursor: default; }
+.day-nav-current {
+  flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: rgba(255,255,255,.04); color: var(--text); cursor: pointer; transition: all .2s;
+  padding: 8px 12px; text-align: center; display: flex; flex-direction: column; gap: 2px;
+}
+.day-nav-current:hover { border-color: rgba(139,92,246,.5); background: rgba(139,92,246,.08); }
+.day-nav-current.past { border-color: rgba(139,92,246,.45); background: rgba(139,92,246,.1); }
+.day-nav-date { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-nav-hint { font-size: 11px; color: var(--muted); font-weight: 600; }
+.day-nav-today {
+  flex: none; padding: 0 14px; border: 1px solid rgba(139,92,246,.5); border-radius: var(--r-sm);
+  background: rgba(139,92,246,.15); color: var(--text); font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: all .2s; white-space: nowrap;
+}
+.day-nav-today:hover { background: rgba(139,92,246,.28); }
 .day-item {
   background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: var(--r-sm);
   padding: 14px; cursor: pointer; transition: all .2s;
 }
+.day-item.active { border-color: rgba(139,92,246,.6); background: rgba(139,92,246,.12); }
 .day-item:hover { border-color: rgba(139,92,246,.4); background: rgba(139,92,246,.06); }
 .day-item-date { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
 .day-item-meta { font-size: 12px; color: var(--muted); font-weight: 600; }
@@ -852,6 +878,7 @@ body {
       <span class="profile-chip-name" id="profile-chip-name"></span>
     </button>
   </div>
+  <div id="day-nav" class="day-nav"></div>
   <div id="today-hero"></div>
   <button class="copy-day-btn" onclick="openCopyDay()">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1116,6 +1143,20 @@ body {
       Wähle einen Tag — alle Mahlzeiten werden zu heute hinzugefügt.
     </p>
     <div id="copy-day-list" class="day-list"></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Verlauf (alle Tage) ===== -->
+<div class="modal-overlay" id="modal-history">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">📅 Alle Tage</span>
+      <button class="modal-close" onclick="closeModal('modal-history')">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+      Tippe auf einen Tag, um ihn anzusehen oder zu bearbeiten.
+    </p>
+    <div id="history-list" class="day-list"></div>
   </div>
 </div>
 
@@ -1536,9 +1577,16 @@ function save() {
   if (currentUser) localStorage.setItem(dataKey(currentUser.id), JSON.stringify(db));
 }
 function uid()  { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-function todayKey() {
-  const d = new Date();
+function dateKeyOf(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function todayKey() {
+  return dateKeyOf(new Date());
+}
+// Currently viewed day on the "Heute" tab. null = today.
+let viewDate = null;
+function viewKey() {
+  return viewDate ? dateKeyOf(viewDate) : todayKey();
 }
 function calcMacros(food, grams) {
   const f = grams / 100;
@@ -1583,7 +1631,7 @@ function showTab(tab, btn) {
   const fab = document.getElementById('main-fab');
   fab.style.display = (tab === 'bedarf' || tab === 'goals') ? 'none' : 'flex';
 
-  if (tab === 'today')   renderToday();
+  if (tab === 'today')   { viewDate = null; renderToday(); }
   if (tab === 'library') renderLibrary();
   if (tab === 'bedarf')  renderBedarf();
 }
@@ -1600,8 +1648,27 @@ function handleFab() {
 // ===== TODAY =====
 let dragIdx = null;
 
+function renderDayNav() {
+  const d = viewDate || new Date();
+  const isToday = !viewDate;
+  const dateStr = d.toLocaleDateString('de-DE', { weekday:'long', day:'numeric', month:'long' });
+
+  // Keep the page header in sync with the viewed day
+  document.getElementById('today-date').textContent = isToday ? 'Heute · ' + dateStr : dateStr;
+
+  document.getElementById('day-nav').innerHTML = `
+    <button class="day-nav-arrow" onclick="shiftDay(-1)" title="Vorheriger Tag">‹</button>
+    <button class="day-nav-current ${isToday ? '' : 'past'}" onclick="openHistory()" title="Alle Tage ansehen">
+      <span class="day-nav-date">${isToday ? '⭐ Heute' : dateStr}</span>
+      <span class="day-nav-hint">📅 Alle Tage ansehen</span>
+    </button>
+    <button class="day-nav-arrow" onclick="shiftDay(1)" title="Nächster Tag" ${isToday ? 'disabled' : ''}>›</button>
+    ${isToday ? '' : `<button class="day-nav-today" onclick="goToday()" title="Zurück zu heute">Heute</button>`}`;
+}
+
 function renderToday() {
-  const allEntries = db.log[todayKey()] || [];
+  renderDayNav();
+  const allEntries = db.log[viewKey()] || [];
   allEntries.forEach(e => { if (!e.meal) e.meal = 'hauptspeise'; });
 
   const tot = allEntries.reduce(
@@ -1745,10 +1812,10 @@ function renderToday() {
 }
 
 function deleteEntry(i) {
-  const entries = db.log[todayKey()] || [];
+  const entries = db.log[viewKey()] || [];
   entries.forEach(e => { if (!e.meal) e.meal = 'hauptspeise'; });
   entries.splice(i, 1);
-  db.log[todayKey()] = entries;
+  db.log[viewKey()] = entries;
   save(); renderToday();
 }
 
@@ -1852,7 +1919,7 @@ function dragLeave(e) {
 function dragDrop(e, toMeal) {
   e.preventDefault();
   if (dragIdx === null) return;
-  const entries = db.log[todayKey()] || [];
+  const entries = db.log[viewKey()] || [];
   entries.forEach(en => { if (!en.meal) en.meal = 'hauptspeise'; });
   if (entries[dragIdx]) { entries[dragIdx].meal = toMeal; save(); renderToday(); }
 }
@@ -1862,7 +1929,7 @@ let editIdx = null;
 let editUnitMode = 'g';   // 'g' | 'piece'
 function openEditEntry(idx) {
   editIdx = idx;
-  const entries = db.log[todayKey()] || [];
+  const entries = db.log[viewKey()] || [];
   entries.forEach(e => { if (!e.meal) e.meal = 'hauptspeise'; });
   const e = entries[idx];
   const food = db.foods.find(f => f.id === e.foodId);
@@ -1898,7 +1965,7 @@ function syncEditUnitUI(food) {
 }
 function setEditUnit(mode) {
   if (editIdx === null) return;
-  const entries = db.log[todayKey()] || [];
+  const entries = db.log[viewKey()] || [];
   const food = db.foods.find(f => f.id === entries[editIdx]?.foodId);
   if (!food || !food.unit || mode === editUnitMode) return;
   const input = document.getElementById('edit-amount');
@@ -1911,7 +1978,7 @@ function setEditUnit(mode) {
 }
 function updateEditPreview() {
   if (editIdx === null) return;
-  const entries = db.log[todayKey()] || [];
+  const entries = db.log[viewKey()] || [];
   const e    = entries[editIdx];
   const food = db.foods.find(f => f.id === e?.foodId);
   if (!food) return;
@@ -1925,7 +1992,7 @@ function updateEditPreview() {
 }
 function saveEditEntry() {
   if (editIdx === null) return;
-  const entries = db.log[todayKey()] || [];
+  const entries = db.log[viewKey()] || [];
   const e    = entries[editIdx];
   const food = db.foods.find(f => f.id === e.foodId);
   if (!food) return;
@@ -1940,7 +2007,7 @@ function saveEditEntry() {
     delete updated.units; delete updated.unitLabel; delete updated.unitPlural;
   }
   entries[editIdx] = updated;
-  db.log[todayKey()] = entries;
+  db.log[viewKey()] = entries;
   save(); closeModal('modal-edit'); renderToday();
 }
 function deleteEditEntry() {
@@ -1952,7 +2019,6 @@ function deleteEditEntry() {
 // ── Copy from day ──────────────────────────────────────
 function openCopyDay() {
   const days = [];
-  const todayK = todayKey();
   for (let i = 1; i <= 21; i++) {
     const d = new Date(); d.setDate(d.getDate() - i);
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1979,10 +2045,53 @@ function openCopyDay() {
 }
 function copyDayEntries(dateKey) {
   const src = db.log[dateKey] || [];
-  const todayK = todayKey();
-  if (!db.log[todayK]) db.log[todayK] = [];
-  src.forEach(e => db.log[todayK].push({ ...e }));
+  const destK = viewKey();
+  if (!db.log[destK]) db.log[destK] = [];
+  src.forEach(e => db.log[destK].push({ ...e }));
   save(); closeModal('modal-copy-day'); renderToday();
+}
+
+// ── Day navigation / history ───────────────────────────
+function shiftDay(delta) {
+  const base = viewDate ? new Date(viewDate) : new Date();
+  base.setHours(0, 0, 0, 0);
+  base.setDate(base.getDate() + delta);
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  viewDate = (base >= t) ? null : base;   // never go past today
+  renderToday();
+}
+function goToday() { viewDate = null; renderToday(); }
+function gotoDay(dateKey) {
+  viewDate = (dateKey === todayKey()) ? null : new Date(dateKey + 'T00:00:00');
+  closeModal('modal-history');
+  renderToday();
+}
+function openHistory() {
+  const keys = Object.keys(db.log)
+    .filter(k => (db.log[k] || []).length)
+    .sort((a, b) => b.localeCompare(a));   // newest first
+  const el = document.getElementById('history-list');
+  const curK = viewKey();
+  if (!keys.length) {
+    el.innerHTML = `<div class="empty"><div class="icon">📅</div><p>Noch keine erfassten Tage.</p></div>`;
+  } else {
+    el.innerHTML = keys.map(key => {
+      const entries = db.log[key];
+      const d = new Date(key + 'T00:00:00');
+      const tot = entries.reduce((a,e) => ({kcal:a.kcal+e.kcal,protein:a.protein+e.protein}),{kcal:0,protein:0});
+      const isToday = key === todayKey();
+      const dateStr = d.toLocaleDateString('de-DE', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+      const mealChips = MEALS.filter(m => entries.some(e => (e.meal||'hauptspeise') === m.id))
+        .map(m => `<span class="day-meal-chip">${m.emoji} ${m.label} (${entries.filter(e=>(e.meal||'hauptspeise')===m.id).length})</span>`).join('');
+      return `
+        <div class="day-item ${key === curK ? 'active' : ''}" onclick="gotoDay('${key}')">
+          <div class="day-item-date">${isToday ? '⭐ Heute · ' : ''}${dateStr}</div>
+          <div class="day-item-meta">${entries.length} Einträge · ${Math.round(tot.kcal)} kcal · ${Math.round(tot.protein*10)/10}g Protein</div>
+          <div class="day-item-meals">${mealChips}</div>
+        </div>`;
+    }).join('');
+  }
+  openModal('modal-history');
 }
 
 // ===== LOG MODAL =====
@@ -2147,7 +2256,7 @@ function logFood() {
   if (!entered || entered <= 0) { alert('Bitte eine gültige Menge eingeben.'); return; }
   const grams = Math.round(logGrams(food));
   if (grams <= 0) { alert('Bitte eine gültige Menge eingeben.'); return; }
-  const key  = todayKey();
+  const key  = viewKey();
   if (!db.log[key]) db.log[key] = [];
   const entry = { foodId: food.id, amount: grams, meal: selectedMeal, ...calcMacros(food, grams) };
   if (food.unit && logUnitMode === 'piece') {
