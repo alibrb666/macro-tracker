@@ -664,6 +664,47 @@ body {
   background: rgba(255,255,255,.05); border: 1px solid var(--border); color: var(--muted); font-weight: 600;
 }
 
+/* ── WEIGHT TRACKING ──────────────────────────────────────────── */
+.weight-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 16px; margin-bottom: 16px;
+}
+.weight-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.weight-head-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.weight-current { font-size: 30px; font-weight: 900; line-height: 1; margin-top: 6px; letter-spacing: -.5px; }
+.weight-current span { font-size: 14px; font-weight: 500; color: var(--muted); }
+.weight-trend { font-size: 12px; font-weight: 700; margin-top: 6px; }
+.weight-trend.down { color: var(--green); }
+.weight-trend.up   { color: var(--fat); }
+.weight-trend.flat { color: var(--muted); }
+.weight-nudge {
+  display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700;
+  background: rgba(139,92,246,.12); border: 1px solid rgba(139,92,246,.4); color: var(--text);
+  border-radius: var(--r-sm); padding: 10px 12px; margin-bottom: 12px;
+}
+.weight-spark { width: 100%; height: 48px; margin: 8px 0 4px; }
+.weight-list { display: flex; flex-direction: column; gap: 0; margin-top: 8px; }
+.weight-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 0; border-top: 1px solid var(--border); font-size: 13px;
+}
+.weight-row:first-child { border-top: none; }
+.weight-row-date { color: var(--muted); font-weight: 600; }
+.weight-row-kg { font-weight: 800; }
+.weight-row-delta { font-size: 11px; font-weight: 700; margin-left: 8px; }
+.weight-row-del {
+  background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px;
+  padding: 2px 6px; margin-left: 6px; opacity: .5;
+}
+.weight-row-del:hover { opacity: 1; color: var(--danger); }
+.weight-preview-box {
+  background: rgba(139,92,246,.08); border: 1px solid rgba(139,92,246,.3);
+  border-radius: var(--r-sm); padding: 14px; margin-bottom: 14px;
+}
+.weight-preview-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 10px; }
+.weight-preview-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+.weight-preview-row b { font-weight: 800; }
+
 /* ── EDIT ENTRY MODAL ─────────────────────────────────────────── */
 .edit-food-header { margin-bottom: 16px; }
 .edit-food-name { font-size: 18px; font-weight: 900; margin-bottom: 3px; letter-spacing: -.3px; }
@@ -1160,6 +1201,34 @@ body {
   </div>
 </div>
 
+<!-- ===== MODAL: Gewicht eintragen ===== -->
+<div class="modal-overlay" id="modal-weight">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⚖️ Gewicht eintragen</span>
+      <button class="modal-close" onclick="closeModal('modal-weight')">✕</button>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:14px">
+      <div style="flex:1">
+        <label class="wizard-input-label">Gewicht (kg)</label>
+        <div class="wizard-input-wrap">
+          <input type="number" class="wizard-input" id="weight-input" inputmode="decimal" step="0.1" min="30" max="300"
+                 oninput="updateWeightPreview()" placeholder="78,5">
+          <span class="wizard-input-unit">kg</span>
+        </div>
+      </div>
+      <div style="flex:1">
+        <label class="wizard-input-label">Datum</label>
+        <div class="wizard-input-wrap">
+          <input type="date" class="wizard-input" id="weight-date" onchange="updateWeightPreview()" style="padding-right:16px;font-size:15px">
+        </div>
+      </div>
+    </div>
+    <div id="weight-goal-preview"></div>
+    <div id="weight-actions" style="display:flex;flex-direction:column;gap:10px;margin-top:6px"></div>
+  </div>
+</div>
+
 <!-- ===== MODAL: TDEE Wizard ===== -->
 <div class="modal-overlay" id="modal-wizard">
   <div class="modal">
@@ -1336,7 +1405,8 @@ let db = {
   foods: [],
   log: {},
   goals: { kcal: 2000, protein: 150, carbs: 250, fat: 65 },
-  profile: null   // { gender, age, weight, height, activity, goal, delta, maintenance, diet }
+  profile: null,  // { gender, age, weight, height, activity, goal, delta, maintenance, diet }
+  weights: []     // [{ date: 'YYYY-MM-DD', kg: number }] — chronologisch, älteste zuerst
 };
 const MEALS = [
   { id: 'fruehstueck',  label: 'Frühstück',   emoji: '🌅' },
@@ -1358,7 +1428,7 @@ const TOTAL_STEPS = 6;
 // ===== AUTH / MULTI-USER =====
 const USERS_KEY  = 'mt-users';      // [{ id, name, emoji, pinHash }]
 const LEGACY_KEY = 'macro-tracker'; // alte Single-User-Daten
-const EMPTY_DB   = () => ({ foods:[], log:{}, goals:{kcal:2000,protein:150,carbs:250,fat:65}, profile:null });
+const EMPTY_DB   = () => ({ foods:[], log:{}, goals:{kcal:2000,protein:150,carbs:250,fat:65}, profile:null, weights:[] });
 const AVATARS    = ['🙂','💪','🏃','🥗','🔥','⭐','🦁','🐻','🦊','🐱','🦄','🌸','🏆','🎯','🚀','🍎','🥑','🧗'];
 
 let users        = [];     // Profil-Liste
@@ -2478,7 +2548,7 @@ function importData(e) {
     try {
       const parsed = JSON.parse(ev.target.result);
       if (!parsed.foods || !parsed.log || !parsed.goals) throw new Error('Ungültiges Format');
-      db = Object.assign({ foods:[], log:{}, goals:{kcal:2000,protein:150,carbs:250,fat:65}, profile:null }, parsed);
+      db = Object.assign(EMPTY_DB(), parsed);
       save();
       renderToday();
       renderLibrary();
@@ -2499,11 +2569,203 @@ function importData(e) {
   reader.readAsText(file);
 }
 
+// ===== WEIGHT TRACKING =====
+const WEIGH_INTERVAL_DAYS = 7;
+
+function getWeights() {
+  if (!Array.isArray(db.weights)) db.weights = [];
+  return db.weights.slice().sort((a, b) => a.date.localeCompare(b.date));
+}
+function latestWeight() { const w = getWeights(); return w[w.length - 1] || null; }
+function weightGoalMode() {
+  return (db.profile && db.profile.goal && db.profile.goal !== 'maintain') ? 'diet' : 'maintenance';
+}
+function daysSince(dateKey) {
+  const a = new Date(dateKey + 'T00:00:00'); a.setHours(0, 0, 0, 0);
+  const b = new Date(); b.setHours(0, 0, 0, 0);
+  return Math.round((b - a) / 86400000);
+}
+
+function weightSparkline(ws) {
+  const pts = ws.slice(-12);
+  if (pts.length < 2) return '';
+  const W = 300, H = 48, pad = 6;
+  const kgs = pts.map(p => p.kg);
+  const min = Math.min(...kgs), max = Math.max(...kgs);
+  const range = (max - min) || 1;
+  const stepX = (W - pad * 2) / (pts.length - 1);
+  const coords = pts.map((p, i) => [pad + i * stepX, pad + (1 - (p.kg - min) / range) * (H - pad * 2)]);
+  const line = coords.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
+  const last = coords[coords.length - 1];
+  return `<svg class="weight-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <defs><linearGradient id="wg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs>
+    <path d="${line}" fill="none" stroke="url(#wg)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.5" fill="#8b5cf6"/>
+  </svg>`;
+}
+
+function renderWeightCard() {
+  const ws = getWeights();
+  const latest = ws[ws.length - 1] || null;
+  const prev   = ws.length >= 2 ? ws[ws.length - 2] : null;
+  const days   = latest ? daysSince(latest.date) : null;
+  const due    = !latest || days >= WEIGH_INTERVAL_DAYS;
+
+  const nudge = due
+    ? `<div class="weight-nudge">⚖️ ${latest ? 'Zeit fürs wöchentliche Wiegen!' : 'Trage dein Gewicht ein, um deinen Fortschritt zu verfolgen.'}</div>`
+    : '';
+
+  let currentBlock;
+  if (latest) {
+    let trend = '';
+    if (prev) {
+      const diff  = latest.kg - prev.kg;
+      const cls   = Math.abs(diff) < 0.05 ? 'flat' : diff < 0 ? 'down' : 'up';
+      const arrow = Math.abs(diff) < 0.05 ? '→' : diff < 0 ? '▼' : '▲';
+      trend = `<div class="weight-trend ${cls}">${arrow} ${fmtNum(Math.abs(diff))} kg seit letztem Wiegen</div>`;
+    }
+    const ago = days === 0 ? 'heute' : days === 1 ? 'gestern' : `vor ${days} Tagen`;
+    currentBlock = `
+      <div class="weight-head-title">Aktuelles Gewicht</div>
+      <div class="weight-current">${fmtNum(latest.kg)}<span> kg</span></div>
+      <div class="weight-trend flat" style="opacity:.75">Zuletzt gewogen: ${ago}</div>
+      ${trend}`;
+  } else {
+    currentBlock = `
+      <div class="weight-head-title">Gewicht</div>
+      <div class="weight-trend flat" style="margin-top:10px">Noch keine Einträge.</div>`;
+  }
+
+  const spark = weightSparkline(ws);
+
+  const recent = ws.slice(-8).reverse();
+  const listHtml = recent.length ? `<div class="weight-list">${recent.map(w => {
+    const realIdx = ws.indexOf(w);
+    const earlier = realIdx > 0 ? ws[realIdx - 1] : null;
+    const dStr = new Date(w.date + 'T00:00:00').toLocaleDateString('de-DE', { weekday:'short', day:'numeric', month:'short' });
+    let delta = '';
+    if (earlier) {
+      const diff = w.kg - earlier.kg;
+      const cls  = Math.abs(diff) < 0.05 ? 'flat' : diff < 0 ? 'down' : 'up';
+      const sign = diff < 0 ? '−' : diff > 0 ? '+' : '±';
+      delta = `<span class="weight-row-delta ${cls}" style="color:${cls==='down'?'var(--green)':cls==='up'?'var(--fat)':'var(--muted)'}">${sign}${fmtNum(Math.abs(diff))}</span>`;
+    }
+    return `<div class="weight-row">
+        <span class="weight-row-date">${dStr}</span>
+        <span style="display:flex;align-items:center">
+          <span class="weight-row-kg">${fmtNum(w.kg)} kg</span>${delta}
+          <button class="weight-row-del" onclick="deleteWeight('${w.date}')" title="Eintrag löschen">✕</button>
+        </span>
+      </div>`;
+  }).join('')}</div>` : '';
+
+  return `
+    <div class="weight-card">
+      ${nudge}
+      <div class="weight-head">
+        <div>${currentBlock}</div>
+        <button class="btn-primary" onclick="openWeightModal()" style="flex:none;width:auto;padding:10px 16px;font-size:13px;white-space:nowrap">⚖️ Eintragen</button>
+      </div>
+      ${spark}
+      ${listHtml}
+    </div>`;
+}
+
+function openWeightModal() {
+  const latest = latestWeight();
+  const input  = document.getElementById('weight-input');
+  input.value  = latest ? latest.kg : (db.profile ? db.profile.weight : '');
+  document.getElementById('weight-date').value = todayKey();
+  updateWeightPreview();
+  openModal('modal-weight');
+}
+
+function updateWeightPreview() {
+  const box     = document.getElementById('weight-goal-preview');
+  const actions = document.getElementById('weight-actions');
+  const kg = parseFloat(String(document.getElementById('weight-input').value).replace(',', '.'));
+  const valid = kg && kg >= 30 && kg <= 300;
+
+  if (!db.profile) {
+    box.innerHTML = `<p style="font-size:12.5px;color:var(--muted);line-height:1.6;margin-bottom:12px">💡 Berechne zuerst deinen Tagesbedarf (Button „Jetzt berechnen"), damit aus deinem Gewicht automatisch neue Makro-Ziele entstehen.</p>`;
+    actions.innerHTML = `<button class="btn-primary" onclick="saveWeight(false)" ${valid ? '' : 'disabled'}>Gewicht speichern</button>`;
+    return;
+  }
+  if (!valid) {
+    box.innerHTML = '';
+    actions.innerHTML = `<button class="btn-primary" disabled>Gewicht speichern</button>`;
+    return;
+  }
+
+  const mode   = weightGoalMode();
+  const needs  = computeNeeds({ ...db.profile, weight: kg });
+  const target = mode === 'diet' ? needs.diet : needs.maintenance;
+  const modeLabel = mode === 'diet' ? (db.profile.goal === 'cut' ? 'Diät' : 'Aufbau') : 'Erhaltung';
+  const dk = target.kcal - db.goals.kcal;
+
+  box.innerHTML = `
+    <div class="weight-preview-box">
+      <div class="weight-preview-title">Neue Ziele bei ${fmtNum(kg)} kg · ${modeLabel}</div>
+      <div class="weight-preview-row"><span style="color:var(--kcal)">Kalorien</span><b>${target.kcal} kcal <span style="color:var(--muted);font-weight:600">(${dk >= 0 ? '+' : ''}${dk})</span></b></div>
+      <div class="weight-preview-row"><span style="color:var(--protein)">Protein</span><b>${target.protein} g</b></div>
+      <div class="weight-preview-row"><span style="color:var(--carbs)">Kohlenhydrate</span><b>${target.carbs} g</b></div>
+      <div class="weight-preview-row"><span style="color:var(--fat)">Fett</span><b>${target.fat} g</b></div>
+    </div>`;
+  actions.innerHTML = `
+    <button class="btn-primary" onclick="saveWeight(true)">✅ Speichern &amp; neue Ziele übernehmen</button>
+    <button class="btn-outline" onclick="saveWeight(false)">Nur Gewicht speichern</button>`;
+}
+
+function saveWeight(applyGoals) {
+  const kg = parseFloat(String(document.getElementById('weight-input').value).replace(',', '.'));
+  if (!kg || kg < 30 || kg > 300) { alert('Bitte ein gültiges Gewicht eingeben (30–300 kg).'); return; }
+  const date = document.getElementById('weight-date').value || todayKey();
+
+  if (!Array.isArray(db.weights)) db.weights = [];
+  const rounded  = Math.round(kg * 10) / 10;
+  const existing = db.weights.find(w => w.date === date);
+  if (existing) existing.kg = rounded;
+  else db.weights.push({ date, kg: rounded });
+  db.weights.sort((a, b) => a.date.localeCompare(b.date));
+
+  if (db.profile) {
+    const newest = db.weights[db.weights.length - 1];
+    db.profile.weight = newest.kg;
+    const needs = computeNeeds(db.profile);
+    db.profile.maintenance = needs.maintenance;
+    db.profile.diet = needs.diet;
+    if (applyGoals) {
+      const target = weightGoalMode() === 'diet' ? needs.diet : needs.maintenance;
+      db.goals = { kcal: target.kcal, protein: target.protein, carbs: target.carbs, fat: target.fat };
+    }
+  }
+  save();
+  closeModal('modal-weight');
+  renderBedarf();
+  loadGoalsForm();
+  renderToday();
+}
+
+function deleteWeight(date) {
+  if (!Array.isArray(db.weights)) return;
+  if (!confirm('Diesen Gewichtseintrag löschen?')) return;
+  db.weights = db.weights.filter(w => w.date !== date);
+  if (db.profile && db.weights.length) {
+    const newest = db.weights[db.weights.length - 1];
+    db.profile.weight = newest.kg;
+    const needs = computeNeeds(db.profile);
+    db.profile.maintenance = needs.maintenance;
+    db.profile.diet = needs.diet;
+  }
+  save();
+  renderBedarf();
+}
+
 // ===== BEDARF TAB =====
 function renderBedarf() {
   const el = document.getElementById('bedarf-content');
   if (!db.profile) {
-    el.innerHTML = `
+    el.innerHTML = renderWeightCard() + `
       <div class="bedarf-intro">
         <div class="icon">🎯</div>
         <h3>Tagesbedarf berechnen</h3>
@@ -2529,7 +2791,7 @@ function renderBedarf() {
   const deltaTxt   = p.goal === 'maintain' ? '' : ` (${deltaSign}${p.delta} kcal)`;
   const badgeClass = { cut:'cut', maintain:'maintain', bulk:'bulk' }[p.goal];
 
-  el.innerHTML = `
+  el.innerHTML = renderWeightCard() + `
     <div class="profile-summary">
       <div class="profile-summary-text">
         <strong>${p.gender === 'm' ? '♂' : '♀'} ${p.age} J · ${p.weight} kg · ${p.height} cm</strong>
@@ -2776,6 +3038,16 @@ function wizardCalc() {
 
   // Save profile
   db.profile = { ...wData, ...needs };
+
+  // Record the entered weight as a weigh-in (updates today's entry if it exists)
+  if (!Array.isArray(db.weights)) db.weights = [];
+  if (wData.weight) {
+    const today = todayKey();
+    const existing = db.weights.find(w => w.date === today);
+    if (existing) existing.kg = wData.weight;
+    else db.weights.push({ date: today, kg: wData.weight });
+    db.weights.sort((a, b) => a.date.localeCompare(b.date));
+  }
   save();
 
   // Build result display
