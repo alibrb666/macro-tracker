@@ -1671,6 +1671,20 @@ function calcMacros(food, grams) {
 function fmtNum(n) {
   return (Math.round(n * 100) / 100).toString().replace('.', ',');
 }
+// Normalize for searching: lowercase, strip accents (ä→a, é→e), ß→ss.
+function normSearch(s) {
+  return (s || '').toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/ß/g, 'ss');
+}
+// Match a name against a query: case/accent-insensitive, words in any order.
+// Each whitespace-separated token must appear somewhere in the name.
+function matchQuery(name, q) {
+  const nq = normSearch(q).trim();
+  if (!nq) return true;
+  const hay = normSearch(name);
+  return nq.split(/\s+/).every(tok => hay.includes(tok));
+}
 // Label for a count of unit pieces, e.g. (1,'Ei','Eier') → "1 Ei", (2,...) → "2 Eier"
 function unitCountLabel(count, label, plural) {
   const n = Math.abs(count - 1) < 1e-9 ? label : (plural || label);
@@ -2226,7 +2240,7 @@ function foodSelectItem(food) {
 }
 
 function renderSelectList(q) {
-  q = q.toLowerCase();
+  const raw = (q || '').trim();
   const el = document.getElementById('select-list');
 
   if (!db.foods.length) {
@@ -2234,7 +2248,7 @@ function renderSelectList(q) {
     return;
   }
 
-  if (!q) {
+  if (!raw) {
     // Show recent + all
     const recentIds = getRecentFoodIds();
     const recentFoods = recentIds.map(id => db.foods.find(f => f.id === id)).filter(Boolean);
@@ -2245,9 +2259,9 @@ function renderSelectList(q) {
     return;
   }
 
-  const foods = db.foods.filter(f => f.name.toLowerCase().includes(q));
+  const foods = db.foods.filter(f => matchQuery(f.name, raw));
   if (!foods.length) {
-    el.innerHTML = `<div class="empty"><div class="icon">🔍</div><p>Kein Treffer für „${esc(q)}"</p></div>`;
+    el.innerHTML = `<div class="empty"><div class="icon">🔍</div><p>Kein Treffer für „${esc(raw)}"</p></div>`;
     return;
   }
   el.innerHTML = foods.map(foodSelectItem).join('');
@@ -2338,8 +2352,7 @@ function logFood() {
 
 // ===== LIBRARY =====
 function renderLibrary(q = '') {
-  q = q.toLowerCase();
-  const foods = db.foods.filter(f => !q || f.name.toLowerCase().includes(q));
+  const foods = db.foods.filter(f => matchQuery(f.name, q));
   if (!foods.length) {
     document.getElementById('lib-grid').innerHTML =
       `<div class="empty"><div class="icon">📚</div><p>Bibliothek ist leer.<br>Tippe auf <b>+</b> um ein Lebensmittel hinzuzufügen.</p></div>`;
@@ -3346,11 +3359,10 @@ function setPresetCat(id) {
 }
 
 function renderPresets(q) {
-  q = q.toLowerCase();
   const inLibrary = new Set(db.foods.map(f => f.name.toLowerCase()));
   const items = PRESETS.filter(p =>
     (activeCat === 'all' || p.cat === activeCat) &&
-    (!q || p.name.toLowerCase().includes(q))
+    matchQuery(p.name, q)
   );
 
   if (!items.length) {
