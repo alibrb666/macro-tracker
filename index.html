@@ -762,6 +762,13 @@ body {
   margin-bottom: 18px; display: inline-block; transition: color .15s;
 }
 .login-back:hover { color: var(--text); }
+.login-cloud-link {
+  margin-top: 20px; width: 100%;
+  background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: var(--r-sm);
+  color: var(--muted); font-size: 14px; font-weight: 700; cursor: pointer;
+  padding: 13px; transition: all .2s;
+}
+.login-cloud-link:hover { border-color: rgba(139,92,246,.45); background: rgba(139,92,246,.08); color: var(--text); }
 
 /* Profile grid */
 .profile-grid {
@@ -883,6 +890,21 @@ body {
       <div class="login-heading">Wer bist du?</div>
       <div class="login-sub">Wähle dein Profil aus</div>
       <div class="profile-grid" id="profile-grid"></div>
+      <button class="login-cloud-link" onclick="loginShowCloud()">☁️ Mit Cloud-Konto anmelden</button>
+    </div>
+
+    <!-- View: Cloud-Anmeldung -->
+    <div class="login-view" id="login-cloud" style="display:none">
+      <button class="login-back" onclick="loginShowSelect()">← Zurück</button>
+      <div class="login-heading">☁️ Cloud-Konto</div>
+      <div class="login-sub">Melde dich an — deine Profile werden geladen</div>
+      <input type="email" class="login-name-input" id="login-cloud-email" placeholder="E-Mail" autocomplete="email">
+      <input type="password" class="login-name-input" id="login-cloud-pw" placeholder="Passwort (mind. 6 Zeichen)" autocomplete="current-password" style="margin-top:10px">
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button class="btn-primary" onclick="loginCloudSignIn()" style="flex:1">Einloggen</button>
+        <button class="btn-outline" onclick="loginCloudSignUp()" style="flex:1">Registrieren</button>
+      </div>
+      <div id="login-cloud-status" style="display:none;font-size:13px;text-align:center;padding:10px 4px;line-height:1.5"></div>
     </div>
 
     <!-- View: Neues Profil (Name + Emoji) -->
@@ -1506,8 +1528,9 @@ function init() {
 function showLogin() {
   document.getElementById('login-screen').classList.remove('hidden');
   loadUsers();
-  if (users.length === 0) loginShowCreate();
-  else loginShowSelect();
+  // Always show the picker (with "Neues Profil" + cloud login) so a fresh
+  // device can sign into the cloud to pull existing profiles.
+  loginShowSelect();
 }
 
 function enterApp(user) {
@@ -1534,10 +1557,21 @@ function logout() {
 }
 
 // ── Login-Views ──────────────────────────────────────
+function loginShowCloud() {
+  document.getElementById('login-select').style.display = 'none';
+  document.getElementById('login-create').style.display = 'none';
+  document.getElementById('login-pin').style.display    = 'none';
+  document.getElementById('login-cloud').style.display  = 'block';
+  const st = document.getElementById('login-cloud-status');
+  if (st) st.style.display = 'none';
+  if (!sbClient) loginCloudStatus('⚠️ Cloud nicht verfügbar (offline?).', true);
+}
+
 function loginShowSelect() {
   loadUsers();
   document.getElementById('login-create').style.display = 'none';
   document.getElementById('login-pin').style.display    = 'none';
+  document.getElementById('login-cloud').style.display  = 'none';
   document.getElementById('login-select').style.display = 'block';
 
   const grid = document.getElementById('profile-grid');
@@ -1809,29 +1843,55 @@ async function resolveCloudConflict(choice) {
   }
   cloudPendingRemote = null;
   renderCloudUI();
+  const loginScreen = document.getElementById('login-screen');
+  if (loginScreen && !loginScreen.classList.contains('hidden')) loginShowSelect();
 }
 
-async function cloudSignUp() {
-  const email = document.getElementById('cloud-email').value.trim();
-  const pw    = document.getElementById('cloud-pw').value;
-  if (!validCloudCreds(email, pw)) return;
-  setCloudStatus('Registriere…');
-  const { data, error } = await sbClient.auth.signUp({ email, password: pw });
-  if (error) { setCloudStatus('⚠️ ' + error.message, true); return; }
-  if (!data.session) { setCloudStatus('📧 Bestätige deine E-Mail und logge dich dann ein.'); return; }
-  cloudUser = data.user;
+// Shared auth core. mode: 'up' (register) | 'in' (login). status: message callback.
+async function doCloudAuth(mode, email, pw, status) {
+  if (!sbClient) { status('⚠️ Cloud nicht verfügbar (offline?).', true); return false; }
+  email = (email || '').trim();
+  if (!email || !/.+@.+\..+/.test(email)) { status('⚠️ Bitte eine gültige E-Mail eingeben.', true); return false; }
+  if (!pw || pw.length < 6) { status('⚠️ Passwort muss mind. 6 Zeichen haben.', true); return false; }
+  status(mode === 'up' ? 'Registriere…' : 'Melde an…');
+  const res = mode === 'up'
+    ? await sbClient.auth.signUp({ email, password: pw })
+    : await sbClient.auth.signInWithPassword({ email, password: pw });
+  if (res.error) { status('⚠️ ' + res.error.message, true); return false; }
+  if (mode === 'up' && !res.data.session) { status('📧 Bestätige deine E-Mail und logge dich dann ein.'); return false; }
+  cloudUser = res.data.user;
   await cloudAfterLogin();
+  return true;
 }
 
-async function cloudSignIn() {
-  const email = document.getElementById('cloud-email').value.trim();
-  const pw    = document.getElementById('cloud-pw').value;
-  if (!validCloudCreds(email, pw)) return;
-  setCloudStatus('Melde an…');
-  const { data, error } = await sbClient.auth.signInWithPassword({ email, password: pw });
-  if (error) { setCloudStatus('⚠️ ' + error.message, true); return; }
-  cloudUser = data.user;
-  await cloudAfterLogin();
+// Handlers used in the Ziele tab
+function cloudSignUp() {
+  return doCloudAuth('up', document.getElementById('cloud-email').value, document.getElementById('cloud-pw').value, setCloudStatus);
+}
+function cloudSignIn() {
+  return doCloudAuth('in', document.getElementById('cloud-email').value, document.getElementById('cloud-pw').value, setCloudStatus);
+}
+
+// Handlers used on the login screen (before picking a profile)
+async function loginCloudSignUp() {
+  const ok = await doCloudAuth('up', document.getElementById('login-cloud-email').value, document.getElementById('login-cloud-pw').value, loginCloudStatus);
+  if (ok) afterLoginCloudAuth();
+}
+async function loginCloudSignIn() {
+  const ok = await doCloudAuth('in', document.getElementById('login-cloud-email').value, document.getElementById('login-cloud-pw').value, loginCloudStatus);
+  if (ok) afterLoginCloudAuth();
+}
+function afterLoginCloudAuth() {
+  // If a conflict dialog opened, let the user's choice (and applyCloudSnapshot) refresh the view.
+  if (document.getElementById('modal-cloud-conflict').classList.contains('open')) return;
+  loginShowSelect();   // show the (now synced) profile list
+}
+function loginCloudStatus(msg, isErr) {
+  const el = document.getElementById('login-cloud-status');
+  if (!el) return;
+  el.style.display = 'block';
+  el.style.color = isErr ? 'var(--danger)' : 'var(--muted)';
+  el.textContent = msg;
 }
 
 async function cloudSignOut() {
@@ -1839,12 +1899,6 @@ async function cloudSignOut() {
   await sbClient.auth.signOut();
   cloudUser = null; cloudLastSync = null;
   renderCloudUI();
-}
-
-function validCloudCreds(email, pw) {
-  if (!email || !/.+@.+\..+/.test(email)) { setCloudStatus('⚠️ Bitte eine gültige E-Mail eingeben.', true); return false; }
-  if (!pw || pw.length < 6) { setCloudStatus('⚠️ Passwort muss mind. 6 Zeichen haben.', true); return false; }
-  return true;
 }
 
 function setCloudStatus(msg, isErr) {
