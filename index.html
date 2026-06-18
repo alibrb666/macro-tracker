@@ -273,6 +273,16 @@ body {
   transform: translateY(-50%); font-size: 12px; color: var(--muted);
   pointer-events: none; font-weight: 700;
 }
+.unit-toggle { display: flex; gap: 8px; margin-bottom: 12px; }
+.unit-btn {
+  flex: 1; padding: 9px 12px; border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: background .2s, color .2s, border-color .2s;
+}
+.unit-btn.active {
+  background: rgba(139,92,246,.14); border-color: var(--accent); color: var(--accent);
+}
 
 /* ── BUTTONS ──────────────────────────────────────────────────── */
 .btn-primary {
@@ -1012,12 +1022,23 @@ body {
         <div class="input-wrap"><input type="number" class="form-input" id="food-fat" placeholder="0"><span class="input-unit">g</span></div>
       </div>
     </div>
-    <div class="form-group" style="margin-top:14px;margin-bottom:20px">
+    <div class="form-group" style="margin-top:14px;margin-bottom:14px">
       <label class="form-label">Typische Portion</label>
       <div class="input-wrap">
         <input type="number" class="form-input" id="food-serving" placeholder="100">
         <span class="input-unit">g</span>
       </div>
+    </div>
+    <div class="form-group" style="margin-bottom:20px">
+      <label class="form-label">Stück-Einheit (optional)</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" class="form-input" id="food-unit-label" placeholder="z.B. Ei, Scheibe" style="flex:1;padding-right:14px">
+        <div class="input-wrap" style="flex:none;width:130px">
+          <input type="number" class="form-input" id="food-unit-g" placeholder="Gewicht">
+          <span class="input-unit">g/Stk</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Gewicht eines Stücks – ermöglicht beim Loggen die Eingabe in Stück statt Gramm.</div>
     </div>
     <button class="btn-primary" onclick="saveFood()">Speichern</button>
   </div>
@@ -1040,9 +1061,13 @@ body {
     <div id="select-list" class="select-list"></div>
     <div id="amount-section" style="display:none;margin-top:16px">
       <div class="divider">Menge</div>
+      <div class="unit-toggle" id="log-unit-toggle" style="display:none">
+        <button type="button" class="unit-btn" id="log-ut-piece" onclick="setLogUnit('piece')">Stück</button>
+        <button type="button" class="unit-btn" id="log-ut-g" onclick="setLogUnit('g')">Gramm</button>
+      </div>
       <div class="input-wrap" style="margin-bottom:12px">
         <input type="number" class="form-input" id="log-amount" placeholder="100" oninput="updatePreview()">
-        <span class="input-unit">g</span>
+        <span class="input-unit" id="log-amount-unit">g</span>
       </div>
       <div id="amount-preview" class="amount-preview"></div>
       <button class="btn-primary" style="margin-top:12px" onclick="logFood()">Hinzufügen</button>
@@ -1063,9 +1088,13 @@ body {
     </div>
     <div class="form-group" style="margin-bottom:4px">
       <label class="form-label">Menge</label>
+      <div class="unit-toggle" id="edit-unit-toggle" style="display:none">
+        <button type="button" class="unit-btn" id="edit-ut-piece" onclick="setEditUnit('piece')">Stück</button>
+        <button type="button" class="unit-btn" id="edit-ut-g" onclick="setEditUnit('g')">Gramm</button>
+      </div>
       <div class="input-wrap">
-        <input type="number" class="form-input" id="edit-amount" oninput="updateEditPreview()" min="1">
-        <span class="input-unit">g</span>
+        <input type="number" class="form-input" id="edit-amount" oninput="updateEditPreview()" min="0">
+        <span class="input-unit" id="edit-amount-unit">g</span>
       </div>
     </div>
     <div class="edit-macro-preview" id="edit-macro-preview"></div>
@@ -1520,6 +1549,15 @@ function calcMacros(food, grams) {
     fat:     Math.round(food.per100g.fat     * f * 10) / 10,
   };
 }
+// Format a number without trailing ".0" (e.g. 2 → "2", 0.5 → "0,5")
+function fmtNum(n) {
+  return (Math.round(n * 100) / 100).toString().replace('.', ',');
+}
+// Label for a count of unit pieces, e.g. (1,'Ei','Eier') → "1 Ei", (2,...) → "2 Eier"
+function unitCountLabel(count, label, plural) {
+  const n = Math.abs(count - 1) < 1e-9 ? label : (plural || label);
+  return `${fmtNum(count)} ${n}`;
+}
 function resizeImage(dataUrl, max = 800) {
   return new Promise(res => {
     const img = new Image();
@@ -1664,7 +1702,7 @@ function renderToday() {
               <div class="meal-log-info" onclick="openEditEntry(${idx})" style="cursor:pointer;flex:1;min-width:0">
                 <div class="meal-log-name">${esc(name)}</div>
                 <div class="meal-log-sub">
-                  <span style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 5px">${e.amount} g</span>
+                  <span style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 5px">${e.units ? `${unitCountLabel(e.units, e.unitLabel, e.unitPlural)} · ${e.amount} g` : `${e.amount} g`}</span>
                   <b style="color:var(--kcal)">${e.kcal} kcal</b>
                   <span>P <b>${e.protein}g</b></span>
                   <span>C <b>${e.carbs}g</b></span>
@@ -1821,6 +1859,7 @@ function dragDrop(e, toMeal) {
 
 // ── Edit entry ────────────────────────────────────────
 let editIdx = null;
+let editUnitMode = 'g';   // 'g' | 'piece'
 function openEditEntry(idx) {
   editIdx = idx;
   const entries = db.log[todayKey()] || [];
@@ -1830,9 +1869,45 @@ function openEditEntry(idx) {
   document.getElementById('edit-food-name').textContent = food ? food.name : 'Unbekannt';
   document.getElementById('edit-food-per100').textContent =
     food ? `${food.per100g.kcal} kcal · ${food.per100g.protein}g P · ${food.per100g.carbs}g C · ${food.per100g.fat}g F pro 100 g` : '';
-  document.getElementById('edit-amount').value = e.amount;
+
+  const toggle = document.getElementById('edit-unit-toggle');
+  const input  = document.getElementById('edit-amount');
+  if (food && food.unit && food.unit.g > 0) {
+    toggle.style.display = 'flex';
+    if (e.units) { editUnitMode = 'piece'; input.value = e.units; input.step = '0.5'; }
+    else         { editUnitMode = 'g';     input.value = e.amount; input.step = '1';   }
+  } else {
+    toggle.style.display = 'none';
+    editUnitMode = 'g';
+    input.value = e.amount;
+    input.step  = '1';
+  }
+  syncEditUnitUI(food);
   updateEditPreview();
   openModal('modal-edit');
+}
+function editGrams(food) {
+  const v = parseFloat(document.getElementById('edit-amount').value) || 0;
+  return (food && food.unit && editUnitMode === 'piece') ? v * food.unit.g : v;
+}
+function syncEditUnitUI(food) {
+  document.getElementById('edit-ut-piece').classList.toggle('active', editUnitMode === 'piece');
+  document.getElementById('edit-ut-g').classList.toggle('active', editUnitMode === 'g');
+  document.getElementById('edit-amount-unit').textContent =
+    (food && food.unit && editUnitMode === 'piece') ? food.unit.label : 'g';
+}
+function setEditUnit(mode) {
+  if (editIdx === null) return;
+  const entries = db.log[todayKey()] || [];
+  const food = db.foods.find(f => f.id === entries[editIdx]?.foodId);
+  if (!food || !food.unit || mode === editUnitMode) return;
+  const input = document.getElementById('edit-amount');
+  const val   = parseFloat(input.value) || 0;
+  if (mode === 'piece') { input.value = val ? +(val / food.unit.g).toFixed(2) : ''; input.step = '0.5'; }
+  else                  { input.value = val ? Math.round(val * food.unit.g)   : ''; input.step = '1';   }
+  editUnitMode = mode;
+  syncEditUnitUI(food);
+  updateEditPreview();
 }
 function updateEditPreview() {
   if (editIdx === null) return;
@@ -1840,7 +1915,7 @@ function updateEditPreview() {
   const e    = entries[editIdx];
   const food = db.foods.find(f => f.id === e?.foodId);
   if (!food) return;
-  const g = parseFloat(document.getElementById('edit-amount').value) || 0;
+  const g = editGrams(food);
   const m = calcMacros(food, g);
   document.getElementById('edit-macro-preview').innerHTML = `
     <div><div class="pv" style="color:var(--kcal)">${m.kcal}</div><div class="pl">kcal</div></div>
@@ -1850,13 +1925,21 @@ function updateEditPreview() {
 }
 function saveEditEntry() {
   if (editIdx === null) return;
-  const grams = parseFloat(document.getElementById('edit-amount').value);
-  if (!grams || grams <= 0) { alert('Bitte eine gültige Menge eingeben.'); return; }
   const entries = db.log[todayKey()] || [];
   const e    = entries[editIdx];
   const food = db.foods.find(f => f.id === e.foodId);
   if (!food) return;
-  entries[editIdx] = { ...e, amount: grams, ...calcMacros(food, grams) };
+  const entered = parseFloat(document.getElementById('edit-amount').value);
+  if (!entered || entered <= 0) { alert('Bitte eine gültige Menge eingeben.'); return; }
+  const grams = Math.round(editGrams(food));
+  if (grams <= 0) { alert('Bitte eine gültige Menge eingeben.'); return; }
+  const updated = { ...e, amount: grams, ...calcMacros(food, grams) };
+  if (food.unit && editUnitMode === 'piece') {
+    updated.units = entered; updated.unitLabel = food.unit.label; updated.unitPlural = food.unit.plural || food.unit.label;
+  } else {
+    delete updated.units; delete updated.unitLabel; delete updated.unitPlural;
+  }
+  entries[editIdx] = updated;
   db.log[todayKey()] = entries;
   save(); closeModal('modal-edit'); renderToday();
 }
@@ -1991,6 +2074,8 @@ function renderSelectList(q) {
   el.innerHTML = foods.map(foodSelectItem).join('');
 }
 
+let logUnitMode = 'g';   // 'g' | 'piece'
+
 function selectFood(id) {
   selectedFoodId = id;
   document.querySelectorAll('.select-item').forEach(el => {
@@ -1998,14 +2083,55 @@ function selectFood(id) {
   });
   const food = db.foods.find(f => f.id === id);
   document.getElementById('amount-section').style.display = 'block';
-  document.getElementById('log-amount').value = food.servingSize || 100;
+
+  const toggle = document.getElementById('log-unit-toggle');
+  const input  = document.getElementById('log-amount');
+  if (food.unit && food.unit.g > 0) {
+    toggle.style.display = 'flex';
+    logUnitMode = 'piece';
+    // Default to whole pieces closest to the typical serving
+    const pieces = Math.max(1, Math.round((food.servingSize || food.unit.g) / food.unit.g));
+    input.value = pieces;
+    input.step  = '0.5';
+  } else {
+    toggle.style.display = 'none';
+    logUnitMode = 'g';
+    input.value = food.servingSize || 100;
+    input.step  = '1';
+  }
+  syncLogUnitUI(food);
+  updatePreview();
+}
+
+// Resolve the entered log amount to grams
+function logGrams(food) {
+  const v = parseFloat(document.getElementById('log-amount').value) || 0;
+  return (food.unit && logUnitMode === 'piece') ? v * food.unit.g : v;
+}
+
+function syncLogUnitUI(food) {
+  document.getElementById('log-ut-piece').classList.toggle('active', logUnitMode === 'piece');
+  document.getElementById('log-ut-g').classList.toggle('active', logUnitMode === 'g');
+  document.getElementById('log-amount-unit').textContent =
+    (food && food.unit && logUnitMode === 'piece') ? food.unit.label : 'g';
+}
+
+function setLogUnit(mode) {
+  const food = db.foods.find(f => f.id === selectedFoodId);
+  if (!food || !food.unit || mode === logUnitMode) return;
+  const input = document.getElementById('log-amount');
+  const val   = parseFloat(input.value) || 0;
+  if (mode === 'piece') { input.value = val ? +(val / food.unit.g).toFixed(2) : ''; input.step = '0.5'; }
+  else                  { input.value = val ? Math.round(val * food.unit.g)   : ''; input.step = '1';   }
+  logUnitMode = mode;
+  syncLogUnitUI(food);
   updatePreview();
 }
 
 function updatePreview() {
   if (!selectedFoodId) return;
   const food  = db.foods.find(f => f.id === selectedFoodId);
-  const grams = parseFloat(document.getElementById('log-amount').value) || 0;
+  const grams = logGrams(food);
   const m     = calcMacros(food, grams);
   document.getElementById('amount-preview').innerHTML = `
     <div><div class="prev-val" style="color:var(--kcal)">${m.kcal}</div><div class="prev-lbl">kcal</div></div>
@@ -2016,12 +2142,18 @@ function updatePreview() {
 
 function logFood() {
   if (!selectedFoodId) return;
-  const grams = parseFloat(document.getElementById('log-amount').value);
-  if (!grams || grams <= 0) { alert('Bitte eine gültige Menge eingeben.'); return; }
-  const food = db.foods.find(f => f.id === selectedFoodId);
+  const food    = db.foods.find(f => f.id === selectedFoodId);
+  const entered = parseFloat(document.getElementById('log-amount').value);
+  if (!entered || entered <= 0) { alert('Bitte eine gültige Menge eingeben.'); return; }
+  const grams = Math.round(logGrams(food));
+  if (grams <= 0) { alert('Bitte eine gültige Menge eingeben.'); return; }
   const key  = todayKey();
   if (!db.log[key]) db.log[key] = [];
-  db.log[key].push({ foodId: food.id, amount: grams, meal: selectedMeal, ...calcMacros(food, grams) });
+  const entry = { foodId: food.id, amount: grams, meal: selectedMeal, ...calcMacros(food, grams) };
+  if (food.unit && logUnitMode === 'piece') {
+    entry.units = entered; entry.unitLabel = food.unit.label; entry.unitPlural = food.unit.plural || food.unit.label;
+  }
+  db.log[key].push(entry);
   save(); closeModal('modal-log'); renderToday();
 }
 
@@ -2080,10 +2212,12 @@ function openFoodModal(id) {
     document.getElementById('food-carbs').value   = food.per100g.carbs;
     document.getElementById('food-fat').value     = food.per100g.fat;
     document.getElementById('food-serving').value = food.servingSize || 100;
+    document.getElementById('food-unit-label').value = food.unit ? food.unit.label : '';
+    document.getElementById('food-unit-g').value     = food.unit ? food.unit.g : '';
     if (food.photo) { photoDataUrl = food.photo; setOCRZonePhoto(food.photo); document.getElementById('btn-ocr').disabled = false; }
     else resetOCRZone();
   } else {
-    ['food-name','food-kcal','food-protein','food-carbs','food-fat'].forEach(id => document.getElementById(id).value = '');
+    ['food-name','food-kcal','food-protein','food-carbs','food-fat','food-unit-label','food-unit-g'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('food-serving').value = '100';
     resetOCRZone();
   }
@@ -2179,7 +2313,10 @@ function saveFood() {
   const serving = parseFloat(document.getElementById('food-serving').value) || 100;
   if (!name)                             { alert('Bitte einen Namen eingeben.'); return; }
   if ([kcal,protein,carbs,fat].some(isNaN)) { alert('Bitte alle Nährwerte ausfüllen.'); return; }
-  const data = { name, photo: photoDataUrl, per100g:{ kcal, protein, carbs, fat }, servingSize: serving };
+  const unitLabel = document.getElementById('food-unit-label').value.trim();
+  const unitG     = parseFloat(document.getElementById('food-unit-g').value);
+  const unit      = (unitLabel && unitG > 0) ? { label: unitLabel, plural: unitLabel, g: unitG } : null;
+  const data = { name, photo: photoDataUrl, per100g:{ kcal, protein, carbs, fat }, servingSize: serving, unit };
   if (editingFoodId) {
     const i = db.foods.findIndex(f => f.id === editingFoodId);
     if (i !== -1) db.foods[i] = { ...db.foods[i], ...data };
@@ -2635,11 +2772,11 @@ const PRESETS = [
   { name:'Muscheln (gekocht)',       cat:'fisch',   emoji:'🦪', serving:100, per100g:{ kcal:86,  protein:12,  carbs:3.7,  fat:2.2 } },
 
   // ══════ MILCH & EI ═══════════════════════════════
-  { name:'Vollei',                   cat:'milch',   emoji:'🥚', serving:60,  per100g:{ kcal:155, protein:13,  carbs:1.1,  fat:11  } },
-  { name:'Eiweiß (nur)',             cat:'milch',   emoji:'🥚', serving:35,  per100g:{ kcal:52,  protein:11,  carbs:0.7,  fat:0.2 } },
-  { name:'Eigelb',                   cat:'milch',   emoji:'🥚', serving:18,  per100g:{ kcal:322, protein:16,  carbs:3.6,  fat:27  } },
-  { name:'Vollmilch (3,5%)',         cat:'milch',   emoji:'🥛', serving:250, per100g:{ kcal:61,  protein:3.3, carbs:4.8,  fat:3.3 } },
-  { name:'Halbfettmilch (1,5%)',     cat:'milch',   emoji:'🥛', serving:250, per100g:{ kcal:46,  protein:3.4, carbs:4.8,  fat:1.5 } },
+  { name:'Vollei',                   cat:'milch',   emoji:'🥚', serving:60,  per100g:{ kcal:155, protein:13,  carbs:1.1,  fat:11  }, unit:{label:'Ei',plural:'Eier',g:60} },
+  { name:'Eiweiß (nur)',             cat:'milch',   emoji:'🥚', serving:35,  per100g:{ kcal:52,  protein:11,  carbs:0.7,  fat:0.2 }, unit:{label:'Eiweiß',plural:'Eiweiß',g:33} },
+  { name:'Eigelb',                   cat:'milch',   emoji:'🥚', serving:18,  per100g:{ kcal:322, protein:16,  carbs:3.6,  fat:27  }, unit:{label:'Eigelb',plural:'Eigelb',g:18} },
+  { name:'Vollmilch (3,5%)',         cat:'milch',   emoji:'🥛', serving:250, per100g:{ kcal:61,  protein:3.3, carbs:4.8,  fat:3.3 }, unit:{label:'Glas',plural:'Gläser',g:250} },
+  { name:'Halbfettmilch (1,5%)',     cat:'milch',   emoji:'🥛', serving:250, per100g:{ kcal:46,  protein:3.4, carbs:4.8,  fat:1.5 }, unit:{label:'Glas',plural:'Gläser',g:250} },
   { name:'Magerquark (0,2%)',        cat:'milch',   emoji:'🫙', serving:200, per100g:{ kcal:67,  protein:12,  carbs:4,    fat:0.2 } },
   { name:'Griechischer Joghurt',     cat:'milch',   emoji:'🫙', serving:200, per100g:{ kcal:97,  protein:9,   carbs:4,    fat:5   } },
   { name:'Naturjoghurt (3,5%)',      cat:'milch',   emoji:'🫙', serving:150, per100g:{ kcal:62,  protein:3.5, carbs:4.8,  fat:3.5 } },
@@ -2648,7 +2785,7 @@ const PRESETS = [
   { name:'Frischkäse (Doppelrahm)', cat:'milch',   emoji:'🧀', serving:30,  per100g:{ kcal:342, protein:6.5, carbs:2.5,  fat:34  } },
   { name:'Frischkäse (Light)',       cat:'milch',   emoji:'🧀', serving:30,  per100g:{ kcal:120, protein:7,   carbs:3,    fat:9   } },
   { name:'Ricotta',                  cat:'milch',   emoji:'🧀', serving:100, per100g:{ kcal:174, protein:11,  carbs:3,    fat:13  } },
-  { name:'Mozzarella',               cat:'milch',   emoji:'🧀', serving:125, per100g:{ kcal:280, protein:22,  carbs:2,    fat:21  } },
+  { name:'Mozzarella',               cat:'milch',   emoji:'🧀', serving:125, per100g:{ kcal:280, protein:22,  carbs:2,    fat:21  }, unit:{label:'Kugel',plural:'Kugeln',g:125} },
   { name:'Gouda (45%)',              cat:'milch',   emoji:'🧀', serving:30,  per100g:{ kcal:356, protein:25,  carbs:2.2,  fat:27  } },
   { name:'Parmesan',                 cat:'milch',   emoji:'🧀', serving:15,  per100g:{ kcal:431, protein:38,  carbs:3.2,  fat:29  } },
   { name:'Feta',                     cat:'milch',   emoji:'🧀', serving:50,  per100g:{ kcal:264, protein:14,  carbs:4.1,  fat:21  } },
@@ -2671,13 +2808,13 @@ const PRESETS = [
   { name:'Bulgur (roh)',             cat:'getreide',emoji:'🌾', serving:80,  per100g:{ kcal:342, protein:12,  carbs:68,   fat:1.3 } },
   { name:'Pasta (roh)',              cat:'getreide',emoji:'🍝', serving:80,  per100g:{ kcal:356, protein:12,  carbs:70,   fat:1.5 } },
   { name:'Vollkornpasta (roh)',      cat:'getreide',emoji:'🍝', serving:80,  per100g:{ kcal:342, protein:13,  carbs:65,   fat:2.5 } },
-  { name:'Kartoffel',                cat:'getreide',emoji:'🥔', serving:200, per100g:{ kcal:77,  protein:2,   carbs:17,   fat:0.1 } },
-  { name:'Süßkartoffel',             cat:'getreide',emoji:'🍠', serving:200, per100g:{ kcal:86,  protein:1.6, carbs:20,   fat:0.1 } },
-  { name:'Toastbrot',                cat:'getreide',emoji:'🍞', serving:30,  per100g:{ kcal:265, protein:8,   carbs:50,   fat:3   } },
-  { name:'Vollkornbrot',             cat:'getreide',emoji:'🍞', serving:50,  per100g:{ kcal:247, protein:9,   carbs:43,   fat:3.3 } },
-  { name:'Pumpernickel',             cat:'getreide',emoji:'🍞', serving:50,  per100g:{ kcal:218, protein:6.4, carbs:44,   fat:1.2 } },
-  { name:'Bagel',                    cat:'getreide',emoji:'🥯', serving:100, per100g:{ kcal:250, protein:9.8, carbs:49,   fat:1.6 } },
-  { name:'Tortilla (Weizen)',        cat:'getreide',emoji:'🫓', serving:50,  per100g:{ kcal:306, protein:8,   carbs:53,   fat:7   } },
+  { name:'Kartoffel',                cat:'getreide',emoji:'🥔', serving:200, per100g:{ kcal:77,  protein:2,   carbs:17,   fat:0.1 }, unit:{label:'Kartoffel',plural:'Kartoffeln',g:120} },
+  { name:'Süßkartoffel',             cat:'getreide',emoji:'🍠', serving:200, per100g:{ kcal:86,  protein:1.6, carbs:20,   fat:0.1 }, unit:{label:'Süßkartoffel',plural:'Süßkartoffeln',g:130} },
+  { name:'Toastbrot',                cat:'getreide',emoji:'🍞', serving:30,  per100g:{ kcal:265, protein:8,   carbs:50,   fat:3   }, unit:{label:'Scheibe',plural:'Scheiben',g:30} },
+  { name:'Vollkornbrot',             cat:'getreide',emoji:'🍞', serving:50,  per100g:{ kcal:247, protein:9,   carbs:43,   fat:3.3 }, unit:{label:'Scheibe',plural:'Scheiben',g:45} },
+  { name:'Pumpernickel',             cat:'getreide',emoji:'🍞', serving:50,  per100g:{ kcal:218, protein:6.4, carbs:44,   fat:1.2 }, unit:{label:'Scheibe',plural:'Scheiben',g:50} },
+  { name:'Bagel',                    cat:'getreide',emoji:'🥯', serving:100, per100g:{ kcal:250, protein:9.8, carbs:49,   fat:1.6 }, unit:{label:'Bagel',plural:'Bagels',g:100} },
+  { name:'Tortilla (Weizen)',        cat:'getreide',emoji:'🫓', serving:50,  per100g:{ kcal:306, protein:8,   carbs:53,   fat:7   }, unit:{label:'Tortilla',plural:'Tortillas',g:50} },
   { name:'Cornflakes (natur)',       cat:'getreide',emoji:'🥣', serving:40,  per100g:{ kcal:357, protein:6.6, carbs:84,   fat:0.9 } },
   { name:'Weizenmehl (Type 405)',    cat:'getreide',emoji:'🌾', serving:50,  per100g:{ kcal:347, protein:10,  carbs:72,   fat:1.2 } },
   { name:'Dinkelmehl',               cat:'getreide',emoji:'🌾', serving:50,  per100g:{ kcal:335, protein:14,  carbs:61,   fat:2.5 } },
@@ -2695,7 +2832,7 @@ const PRESETS = [
   { name:'Hummus',                   cat:'huelsen', emoji:'🫘', serving:80,  per100g:{ kcal:166, protein:7.9, carbs:14,   fat:9.6 } },
 
   // ══════ GEMÜSE ═══════════════════════════════════
-  { name:'Tomate',                   cat:'gemuese', emoji:'🍅', serving:120, per100g:{ kcal:18,  protein:0.9, carbs:3.5,  fat:0.2 } },
+  { name:'Tomate',                   cat:'gemuese', emoji:'🍅', serving:120, per100g:{ kcal:18,  protein:0.9, carbs:3.5,  fat:0.2 }, unit:{label:'Tomate',plural:'Tomaten',g:80} },
   { name:'Cherrytomaten',            cat:'gemuese', emoji:'🍅', serving:100, per100g:{ kcal:18,  protein:0.9, carbs:3.9,  fat:0.2 } },
   { name:'Gurke',                    cat:'gemuese', emoji:'🥒', serving:100, per100g:{ kcal:16,  protein:0.7, carbs:3.6,  fat:0.1 } },
   { name:'Brokkoli',                 cat:'gemuese', emoji:'🥦', serving:200, per100g:{ kcal:34,  protein:2.8, carbs:7,    fat:0.4 } },
@@ -2705,33 +2842,33 @@ const PRESETS = [
   { name:'Spinat (roh)',             cat:'gemuese', emoji:'🌿', serving:100, per100g:{ kcal:23,  protein:2.9, carbs:3.6,  fat:0.4 } },
   { name:'Rucola',                   cat:'gemuese', emoji:'🌿', serving:50,  per100g:{ kcal:25,  protein:2.6, carbs:3.7,  fat:0.7 } },
   { name:'Kopfsalat / Eisberg',      cat:'gemuese', emoji:'🥬', serving:100, per100g:{ kcal:14,  protein:1.4, carbs:2.2,  fat:0.2 } },
-  { name:'Paprika (rot)',            cat:'gemuese', emoji:'🫑', serving:150, per100g:{ kcal:31,  protein:1,   carbs:6,    fat:0.3 } },
-  { name:'Paprika (gelb)',           cat:'gemuese', emoji:'🫑', serving:150, per100g:{ kcal:27,  protein:1,   carbs:6.3,  fat:0.2 } },
+  { name:'Paprika (rot)',            cat:'gemuese', emoji:'🫑', serving:150, per100g:{ kcal:31,  protein:1,   carbs:6,    fat:0.3 }, unit:{label:'Paprika',plural:'Paprika',g:150} },
+  { name:'Paprika (gelb)',           cat:'gemuese', emoji:'🫑', serving:150, per100g:{ kcal:27,  protein:1,   carbs:6.3,  fat:0.2 }, unit:{label:'Paprika',plural:'Paprika',g:150} },
   { name:'Champignons',              cat:'gemuese', emoji:'🍄', serving:100, per100g:{ kcal:22,  protein:3.1, carbs:3.3,  fat:0.3 } },
   { name:'Austernpilze',             cat:'gemuese', emoji:'🍄', serving:100, per100g:{ kcal:33,  protein:3.3, carbs:6,    fat:0.4 } },
-  { name:'Zucchini',                 cat:'gemuese', emoji:'🥒', serving:200, per100g:{ kcal:17,  protein:1.2, carbs:3.1,  fat:0.3 } },
+  { name:'Zucchini',                 cat:'gemuese', emoji:'🥒', serving:200, per100g:{ kcal:17,  protein:1.2, carbs:3.1,  fat:0.3 }, unit:{label:'Zucchini',plural:'Zucchini',g:200} },
   { name:'Aubergine',                cat:'gemuese', emoji:'🍆', serving:150, per100g:{ kcal:25,  protein:1,   carbs:6,    fat:0.2 } },
-  { name:'Karotte',                  cat:'gemuese', emoji:'🥕', serving:100, per100g:{ kcal:41,  protein:0.9, carbs:10,   fat:0.2 } },
+  { name:'Karotte',                  cat:'gemuese', emoji:'🥕', serving:100, per100g:{ kcal:41,  protein:0.9, carbs:10,   fat:0.2 }, unit:{label:'Karotte',plural:'Karotten',g:60} },
   { name:'Rote Bete',                cat:'gemuese', emoji:'🫚', serving:100, per100g:{ kcal:43,  protein:1.6, carbs:10,   fat:0.1 } },
   { name:'Mais (Dose)',              cat:'gemuese', emoji:'🌽', serving:100, per100g:{ kcal:86,  protein:2.9, carbs:18,   fat:1.2 } },
   { name:'Spargel (grün)',           cat:'gemuese', emoji:'🌿', serving:150, per100g:{ kcal:20,  protein:2.2, carbs:3.9,  fat:0.1 } },
   { name:'Lauch',                    cat:'gemuese', emoji:'🌿', serving:100, per100g:{ kcal:26,  protein:1.5, carbs:6,    fat:0.3 } },
   { name:'Staudensellerie',          cat:'gemuese', emoji:'🌿', serving:100, per100g:{ kcal:14,  protein:0.7, carbs:3,    fat:0.2 } },
   { name:'Kürbis (Hokkaido)',        cat:'gemuese', emoji:'🎃', serving:200, per100g:{ kcal:40,  protein:1.5, carbs:9,    fat:0.1 } },
-  { name:'Zwiebel',                  cat:'gemuese', emoji:'🧅', serving:80,  per100g:{ kcal:40,  protein:1.1, carbs:9,    fat:0.1 } },
-  { name:'Knoblauch',                cat:'gemuese', emoji:'🧄', serving:5,   per100g:{ kcal:149, protein:6.4, carbs:33,   fat:0.5 } },
+  { name:'Zwiebel',                  cat:'gemuese', emoji:'🧅', serving:80,  per100g:{ kcal:40,  protein:1.1, carbs:9,    fat:0.1 }, unit:{label:'Zwiebel',plural:'Zwiebeln',g:80} },
+  { name:'Knoblauch',                cat:'gemuese', emoji:'🧄', serving:5,   per100g:{ kcal:149, protein:6.4, carbs:33,   fat:0.5 }, unit:{label:'Zehe',plural:'Zehen',g:5} },
   { name:'Weißkohl',                 cat:'gemuese', emoji:'🥬', serving:150, per100g:{ kcal:25,  protein:1.3, carbs:5.8,  fat:0.1 } },
   { name:'Rotkohl',                  cat:'gemuese', emoji:'🥬', serving:150, per100g:{ kcal:27,  protein:1.4, carbs:6.1,  fat:0.1 } },
   { name:'Grüne Bohnen',             cat:'gemuese', emoji:'🫛', serving:150, per100g:{ kcal:31,  protein:1.8, carbs:7,    fat:0.1 } },
 
   // ══════ OBST ═════════════════════════════════════
-  { name:'Banane',                   cat:'obst',    emoji:'🍌', serving:120, per100g:{ kcal:89,  protein:1.1, carbs:23,   fat:0.3 } },
-  { name:'Apfel',                    cat:'obst',    emoji:'🍎', serving:150, per100g:{ kcal:52,  protein:0.3, carbs:14,   fat:0.2 } },
-  { name:'Birne',                    cat:'obst',    emoji:'🍐', serving:150, per100g:{ kcal:57,  protein:0.4, carbs:15,   fat:0.1 } },
-  { name:'Orange',                   cat:'obst',    emoji:'🍊', serving:150, per100g:{ kcal:47,  protein:0.9, carbs:12,   fat:0.1 } },
+  { name:'Banane',                   cat:'obst',    emoji:'🍌', serving:120, per100g:{ kcal:89,  protein:1.1, carbs:23,   fat:0.3 }, unit:{label:'Banane',plural:'Bananen',g:120} },
+  { name:'Apfel',                    cat:'obst',    emoji:'🍎', serving:150, per100g:{ kcal:52,  protein:0.3, carbs:14,   fat:0.2 }, unit:{label:'Apfel',plural:'Äpfel',g:150} },
+  { name:'Birne',                    cat:'obst',    emoji:'🍐', serving:150, per100g:{ kcal:57,  protein:0.4, carbs:15,   fat:0.1 }, unit:{label:'Birne',plural:'Birnen',g:150} },
+  { name:'Orange',                   cat:'obst',    emoji:'🍊', serving:150, per100g:{ kcal:47,  protein:0.9, carbs:12,   fat:0.1 }, unit:{label:'Orange',plural:'Orangen',g:150} },
   { name:'Grapefruit',               cat:'obst',    emoji:'🍊', serving:150, per100g:{ kcal:42,  protein:0.8, carbs:11,   fat:0.1 } },
-  { name:'Kiwi',                     cat:'obst',    emoji:'🥝', serving:80,  per100g:{ kcal:61,  protein:1.1, carbs:15,   fat:0.5 } },
-  { name:'Mango',                    cat:'obst',    emoji:'🥭', serving:150, per100g:{ kcal:60,  protein:0.8, carbs:15,   fat:0.4 } },
+  { name:'Kiwi',                     cat:'obst',    emoji:'🥝', serving:80,  per100g:{ kcal:61,  protein:1.1, carbs:15,   fat:0.5 }, unit:{label:'Kiwi',plural:'Kiwis',g:75} },
+  { name:'Mango',                    cat:'obst',    emoji:'🥭', serving:150, per100g:{ kcal:60,  protein:0.8, carbs:15,   fat:0.4 }, unit:{label:'Mango',plural:'Mangos',g:200} },
   { name:'Ananas',                   cat:'obst',    emoji:'🍍', serving:150, per100g:{ kcal:50,  protein:0.5, carbs:13,   fat:0.1 } },
   { name:'Wassermelone',             cat:'obst',    emoji:'🍉', serving:200, per100g:{ kcal:30,  protein:0.6, carbs:7.6,  fat:0.2 } },
   { name:'Erdbeeren',                cat:'obst',    emoji:'🍓', serving:150, per100g:{ kcal:32,  protein:0.7, carbs:8,    fat:0.3 } },
@@ -2740,21 +2877,21 @@ const PRESETS = [
   { name:'Brombeeren',               cat:'obst',    emoji:'🫐', serving:100, per100g:{ kcal:43,  protein:1.4, carbs:10,   fat:0.5 } },
   { name:'Weintrauben',              cat:'obst',    emoji:'🍇', serving:150, per100g:{ kcal:69,  protein:0.7, carbs:18,   fat:0.2 } },
   { name:'Kirsche',                  cat:'obst',    emoji:'🍒', serving:100, per100g:{ kcal:63,  protein:1.1, carbs:16,   fat:0.2 } },
-  { name:'Pfirsich',                 cat:'obst',    emoji:'🍑', serving:150, per100g:{ kcal:39,  protein:0.9, carbs:10,   fat:0.3 } },
-  { name:'Datteln (getrocknet)',     cat:'obst',    emoji:'🫙', serving:30,  per100g:{ kcal:277, protein:1.8, carbs:75,   fat:0.2 } },
+  { name:'Pfirsich',                 cat:'obst',    emoji:'🍑', serving:150, per100g:{ kcal:39,  protein:0.9, carbs:10,   fat:0.3 }, unit:{label:'Pfirsich',plural:'Pfirsiche',g:150} },
+  { name:'Datteln (getrocknet)',     cat:'obst',    emoji:'🫙', serving:30,  per100g:{ kcal:277, protein:1.8, carbs:75,   fat:0.2 }, unit:{label:'Dattel',plural:'Datteln',g:8} },
 
   // ══════ FETTE & NÜSSE ════════════════════════════
-  { name:'Olivenöl',                 cat:'fette',   emoji:'🫒', serving:10,  per100g:{ kcal:884, protein:0,   carbs:0,    fat:100 } },
+  { name:'Olivenöl',                 cat:'fette',   emoji:'🫒', serving:10,  per100g:{ kcal:884, protein:0,   carbs:0,    fat:100 }, unit:{label:'EL',plural:'EL',g:10} },
   { name:'Kokosöl',                  cat:'fette',   emoji:'🥥', serving:10,  per100g:{ kcal:862, protein:0,   carbs:0,    fat:100 } },
   { name:'Butter',                   cat:'fette',   emoji:'🧈', serving:10,  per100g:{ kcal:717, protein:0.9, carbs:0.1,  fat:81  } },
-  { name:'Avocado',                  cat:'fette',   emoji:'🥑', serving:100, per100g:{ kcal:160, protein:2,   carbs:9,    fat:15  } },
+  { name:'Avocado',                  cat:'fette',   emoji:'🥑', serving:100, per100g:{ kcal:160, protein:2,   carbs:9,    fat:15  }, unit:{label:'Avocado',plural:'Avocados',g:140} },
   { name:'Mandeln',                  cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:579, protein:21,  carbs:22,   fat:50  } },
   { name:'Walnüsse',                 cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:654, protein:15,  carbs:14,   fat:65  } },
   { name:'Cashews',                  cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:553, protein:18,  carbs:30,   fat:44  } },
   { name:'Haselnüsse',               cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:628, protein:15,  carbs:17,   fat:61  } },
   { name:'Pistazien',                cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:562, protein:20,  carbs:28,   fat:45  } },
   { name:'Erdnüsse (geröstet)',      cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:585, protein:26,  carbs:16,   fat:50  } },
-  { name:'Erdnussbutter (natur)',    cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:588, protein:25,  carbs:20,   fat:50  } },
+  { name:'Erdnussbutter (natur)',    cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:588, protein:25,  carbs:20,   fat:50  }, unit:{label:'EL',plural:'EL',g:16} },
   { name:'Mandelmus',                cat:'fette',   emoji:'🥜', serving:20,  per100g:{ kcal:614, protein:21,  carbs:20,   fat:56  } },
   { name:'Chiasamen',                cat:'fette',   emoji:'🌱', serving:15,  per100g:{ kcal:486, protein:17,  carbs:42,   fat:31  } },
   { name:'Leinsamen',                cat:'fette',   emoji:'🌱', serving:15,  per100g:{ kcal:534, protein:18,  carbs:29,   fat:42  } },
@@ -2765,7 +2902,7 @@ const PRESETS = [
   { name:'Kokosraspeln',             cat:'fette',   emoji:'🥥', serving:20,  per100g:{ kcal:354, protein:3.3, carbs:15,   fat:33  } },
 
   // ══════ SONSTIGES ════════════════════════════════
-  { name:'Honig',                    cat:'sonstiges',emoji:'🍯', serving:15,  per100g:{ kcal:304, protein:0.3, carbs:82,   fat:0   } },
+  { name:'Honig',                    cat:'sonstiges',emoji:'🍯', serving:15,  per100g:{ kcal:304, protein:0.3, carbs:82,   fat:0   }, unit:{label:'EL',plural:'EL',g:20} },
   { name:'Tomatenmark (doppelt)',    cat:'sonstiges',emoji:'🍅', serving:20,  per100g:{ kcal:96,  protein:5,   carbs:18,   fat:0.5 } },
   { name:'Passierte Tomaten',        cat:'sonstiges',emoji:'🍅', serving:200, per100g:{ kcal:32,  protein:1.6, carbs:6.4,  fat:0.3 } },
   { name:'Sojasoße',                 cat:'sonstiges',emoji:'🫙', serving:15,  per100g:{ kcal:60,  protein:8,   carbs:5,    fat:0.1 } },
@@ -2776,7 +2913,7 @@ const PRESETS = [
   { name:'Hafermilch',               cat:'sonstiges',emoji:'🥛', serving:250, per100g:{ kcal:46,  protein:1,   carbs:9,    fat:1   } },
   { name:'Mandelmilch (ungesüßt)',   cat:'sonstiges',emoji:'🥛', serving:250, per100g:{ kcal:17,  protein:0.6, carbs:1.4,  fat:1.1 } },
   { name:'Sojamilch (natur)',        cat:'sonstiges',emoji:'🥛', serving:250, per100g:{ kcal:40,  protein:3.6, carbs:2.5,  fat:2   } },
-  { name:'Dunkle Schokolade (85%)', cat:'sonstiges',emoji:'🍫', serving:20,  per100g:{ kcal:598, protein:8,   carbs:46,   fat:43  } },
+  { name:'Dunkle Schokolade (85%)', cat:'sonstiges',emoji:'🍫', serving:20,  per100g:{ kcal:598, protein:8,   carbs:46,   fat:43  }, unit:{label:'Stück',plural:'Stück',g:5} },
 ];
 
 let activeCat = 'all';
@@ -2841,6 +2978,7 @@ function renderPresets(q) {
             <span>C <b style="color:var(--text)">${p.per100g.carbs}g</b></span>
             <span>F <b style="color:var(--text)">${p.per100g.fat}g</b></span>
             <span style="opacity:.6">/ 100g</span>
+            ${p.unit ? `<span style="opacity:.85;color:var(--accent)">· 1 ${p.unit.label} ≈ ${p.unit.g} g</span>` : ''}
           </div>
         </div>
         ${btnHtml}
@@ -2859,6 +2997,7 @@ function addPreset(name) {
     photo: null,
     per100g: { ...p.per100g },
     servingSize: p.serving,
+    unit: p.unit ? { ...p.unit } : null,
   });
   save();
   renderLibrary(document.getElementById('lib-search').value);
