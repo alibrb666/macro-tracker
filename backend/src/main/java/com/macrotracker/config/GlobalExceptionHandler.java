@@ -1,5 +1,6 @@
 package com.macrotracker.config;
 
+import com.macrotracker.auth.MailService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -47,5 +48,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleIntegrity(DataIntegrityViolationException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", "E-Mail ist bereits registriert"));
+    }
+
+    /** Bestätigungsmail konnte nicht versendet werden → 502, damit das Frontend es meldet. */
+    @ExceptionHandler(MailService.MailSendFailedException.class)
+    public ResponseEntity<Map<String, String>> handleMail(MailService.MailSendFailedException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(Map.of("error", "Bestätigungsmail konnte nicht gesendet werden. Bitte später erneut versuchen."));
     }
 }

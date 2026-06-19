@@ -24,4 +24,17 @@ public class AuthDtos {
 
     /** Antwort nach erfolgreichem Login: das Token + die E-Mail. */
     public record AuthResponse(String token, String email) { }
+
+    /**
+     * Antwort nach der Registrierung: KEIN Token, denn erst muss die E-Mail
+     * bestätigt werden. status = "verification_sent".
+     */
+    public record RegisterResponse(String status, String email) { }
+
+    /** Anfrage-Körper für "Bestätigungsmail erneut senden". */
+    public record ResendRequest(
+            @Email(message = "Ungültige E-Mail")
+            @NotBlank(message = "E-Mail fehlt")
+            String email
+    ) { }
 }
