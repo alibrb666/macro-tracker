@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Macro Tracker</title>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1550,59 +1551,21 @@ function loadUserDB(id) {
 // ===== INIT =====
 function init() {
   loadUsers();
-  // Rückleitung von OAuth (#token=…) bzw. E-Mail-Bestätigung (?confirmed=…) auswerten,
-  // BEVOR initCloud läuft (damit ein per OAuth erhaltenes Token sofort genutzt wird).
-  const redirect = consumeAuthRedirect();
+  // supabase-js verarbeitet eine Session aus der URL (E-Mail-Bestätigung / OAuth)
+  // selbst und meldet sie über onAuthStateChange (siehe initCloud → handleSignedIn).
   initCloud();
   document.querySelectorAll('.modal-overlay').forEach(o =>
     o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); })
   );
   document.getElementById('lib-search').addEventListener('input', e => renderLibrary(e.target.value));
 
-  // Auto-Login wenn Sitzung aktiv
+  // Auto-Login wenn (lokale) Sitzung aktiv
   const sessionId = sessionStorage.getItem('mt-current');
   if (sessionId && users.some(u => u.id === sessionId)) {
     enterApp(users.find(u => u.id === sessionId));
   } else {
     showLogin();
   }
-
-  // Ergebnis der Rückleitung anzeigen (nach showLogin, damit die Views existieren).
-  if (redirect.confirmed === true)  { loginShowCloud(); loginCloudStatus('✅ E-Mail bestätigt! Du kannst dich jetzt einloggen.'); }
-  if (redirect.confirmed === false) { loginShowCloud(); loginCloudStatus('⚠️ Bestätigungslink ungültig oder abgelaufen. Fordere einen neuen an.', true); }
-  if (redirect.oauthError)          { loginShowCloud(); loginCloudStatus('⚠️ Anmeldung mit dem Anbieter fehlgeschlagen. Bitte erneut versuchen.', true); }
-  // Nach erfolgreichem OAuth-Login: Profil anlegen/öffnen (der stille Sync läuft
-  // parallel und korrigiert die Ansicht ggf. nach, sobald die Daten da sind).
-  if (redirect.oauth) resolvePostLogin();
-}
-
-// Liest OAuth-/Bestätigungs-Parameter aus der URL, speichert ggf. das Token und
-// putzt die URL wieder sauber. Liefert das Ergebnis für die Anzeige.
-function consumeAuthRedirect() {
-  // OAuth: Token kommt im URL-Fragment (#token=…&email=…) — nicht im Query, damit
-  // es nicht in Server-Logs/Referer landet.
-  if (location.hash && location.hash.indexOf('token=') !== -1) {
-    const h = new URLSearchParams(location.hash.slice(1));
-    const t = h.get('token'), em = h.get('email');
-    history.replaceState(null, '', location.pathname + location.search);
-    if (t) {
-      cloudToken = t; cloudEmail = em || '';
-      localStorage.setItem(TOKEN_KEY, t);
-      if (em) localStorage.setItem(EMAIL_KEY, em);
-      return { oauth: true };
-    }
-  }
-  if (location.hash && location.hash.indexOf('oauth_error') !== -1) {
-    history.replaceState(null, '', location.pathname + location.search);
-    return { oauthError: true };
-  }
-  const q = new URLSearchParams(location.search);
-  if (q.has('confirmed')) {
-    const ok = q.get('confirmed') === '1';
-    history.replaceState(null, '', location.pathname);
-    return { confirmed: ok };
-  }
-  return {};
 }
 
 function showLogin() {
@@ -1860,22 +1823,34 @@ function save() {
   cloudSyncSoon();
 }
 
-// ===== CLOUD SYNC (eigenes Java/Spring-Boot-Backend) =====
-const API_BASE  = 'https://macro-tracker-production-2915.up.railway.app';
-const TOKEN_KEY = 'mt-cloud-token';
-const EMAIL_KEY = 'mt-cloud-email';
-let cloudToken     = null;   // JWT vom Backend (im localStorage gespeichert)
-let cloudEmail     = null;   // E-Mail des angemeldeten Cloud-Kontos
+// ===== CLOUD SYNC (Spring-Backend für Daten) + SUPABASE AUTH =====
+const API_BASE = 'https://macro-tracker-production-2915.up.railway.app';
+
+// Supabase übernimmt Login/Registrierung/E-Mail-Bestätigung/Google/GitHub.
+// Der anon-Key ist öffentlich (darf im Code stehen).
+const SUPABASE_URL = 'https://pxeejfowdivavcqbigsc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4ZWVqZm93ZGl2YXZjcWJpZ3NjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MTgzNzUsImV4cCI6MjA5NzM5NDM3NX0.af19l5t-EMvmuw-UyGP0yRNUJ5pRV7uqHe73fbDy1_g';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Wohin nach E-Mail-Bestätigung / OAuth zurückgeleitet wird (muss in Supabase als Redirect-URL erlaubt sein).
+const REDIRECT_URL = window.location.origin + window.location.pathname;
+
+let cloudToken     = null;   // aktuelles Supabase-Access-Token (Spiegel der Session)
+let cloudEmail     = null;
 let cloudPushTimer = null;
 let cloudLastSync  = null;
 let cloudApplying  = false;  // suppress push while applying a pulled snapshot
 let cloudPendingRemote = null;
+let cloudPostLoginDone = false;
 
-// Kleiner Helfer für API-Aufrufe ans Backend. Mit Timeout, damit eine hängende
-// Anfrage nicht ewig wartet, sondern sauber abbricht.
+// API-Aufrufe ans Backend. Holt das aktuelle Supabase-Token frisch (supabase-js
+// erneuert es automatisch). Mit Timeout, damit nichts ewig hängt.
 async function api(path, { method = 'GET', body, auth = false, timeoutMs = 30000 } = {}) {
   const headers = { 'Content-Type': 'application/json' };
-  if (auth && cloudToken) headers['Authorization'] = 'Bearer ' + cloudToken;
+  if (auth) {
+    const { data } = await sb.auth.getSession();
+    const tok = data.session && data.session.access_token;
+    if (tok) headers['Authorization'] = 'Bearer ' + tok;
+  }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -1890,21 +1865,39 @@ async function api(path, { method = 'GET', body, auth = false, timeoutMs = 30000
   }
 }
 
-// Token abgelaufen/ungültig → ausloggen und Hinweis zeigen.
+// Backend lehnt das Token ab → bei Supabase abmelden.
 function handleAuthExpired() {
+  sb.auth.signOut();
   cloudToken = null; cloudEmail = null;
-  localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(EMAIL_KEY);
   setCloudStatus('⚠️ Sitzung abgelaufen — bitte neu einloggen.', true);
   renderCloudUI();
 }
 
 function initCloud() {
-  cloudToken = localStorage.getItem(TOKEN_KEY);
-  cloudEmail = localStorage.getItem(EMAIL_KEY);
-  renderCloudUI();
-  if (cloudToken) {
-    cloudPull({ silent: true });   // cloud is the cross-device source of truth on startup
-  }
+  // supabase-js liest eine Session aus der URL (E-Mail-Bestätigung / OAuth) automatisch
+  // und meldet jede Auth-Änderung hier.
+  sb.auth.onAuthStateChange((event, session) => {
+    cloudToken = session ? session.access_token : null;
+    cloudEmail = session ? (session.user.email || '') : null;
+    renderCloudUI();
+    if (event === 'SIGNED_OUT') { cloudPostLoginDone = false; return; }
+    if (session && event === 'INITIAL_SESSION') cloudPull({ silent: true });   // beim Laden wiederhergestellt
+    if (session && event === 'SIGNED_IN')        handleSignedIn();              // gerade frisch angemeldet
+  });
+}
+
+// Frisch über Supabase angemeldet (Passwort-Login / Google / GitHub / E-Mail bestätigt):
+// Daten abgleichen und — falls noch auf dem Login-Screen — ins passende Profil wechseln.
+async function handleSignedIn() {
+  if (cloudPostLoginDone) return;
+  cloudPostLoginDone = true;
+  const loginScreen = document.getElementById('login-screen');
+  const onLogin = !loginScreen.classList.contains('hidden');
+  try { await cloudAfterLogin(onLogin ? loginCloudStatus : setCloudStatus); } catch (e) {}
+  // Nur weiterleiten, wenn wir noch auf dem Login-Screen sind (cloudAfterLogin kann
+  // schon ins Profil gewechselt haben) und kein Konflikt-Dialog offen ist.
+  if (loginScreen.classList.contains('hidden')) return;             // schon in der App → fertig
+  if (!document.getElementById('modal-cloud-conflict').classList.contains('open')) resolvePostLogin();
 }
 
 // Snapshot of the ENTIRE local dataset (all profiles + their data)
@@ -2061,52 +2054,41 @@ async function resolveCloudConflict(choice) {
   if (loginScreen && !loginScreen.classList.contains('hidden')) resolvePostLogin();
 }
 
-// Shared auth core. mode: 'up' (register) | 'in' (login). status: message callback.
+// Auth über Supabase. mode: 'up' (registrieren) | 'in' (einloggen).
+// Bei Erfolg übernimmt onAuthStateChange(SIGNED_IN) → handleSignedIn das Weiterleiten.
 async function doCloudAuth(mode, email, pw, status) {
   email = (email || '').trim();
   if (!email || !/.+@.+\..+/.test(email)) { status('⚠️ Bitte eine gültige E-Mail eingeben.', true); return false; }
   if (!pw || pw.length < 6) { status('⚠️ Passwort muss mind. 6 Zeichen haben.', true); return false; }
-  status(mode === 'up' ? 'Registriere…' : 'Melde an… (Server startet evtl. kurz, bis zu 1 Min)');
-  let res;
+  status(mode === 'up' ? 'Registriere…' : 'Melde an…');
   try {
-    res = await api(mode === 'up' ? '/api/auth/register' : '/api/auth/login',
-                    { method: 'POST', body: { email, password: pw } });
-  } catch (e) {
-    status('⚠️ Keine Verbindung zum Server. Evtl. startet er gerade — kurz warten und erneut versuchen.', true);
-    return false;
-  }
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    // E-Mail noch nicht bestätigt → klaren Hinweis + Möglichkeit zum erneuten Senden.
-    if (mode === 'in' && res.status === 403) {
-      status('⚠️ E-Mail noch nicht bestätigt. Bitte klicke den Link in deiner Mail (auch Spam-Ordner prüfen). Über „Bestätigungsmail erneut senden" bekommst du einen neuen Link.', true);
-      return false;
+    if (mode === 'up') {
+      const { data, error } = await sb.auth.signUp({ email, password: pw, options: { emailRedirectTo: REDIRECT_URL } });
+      if (error) { status('⚠️ ' + authErrorText(error), true); return false; }
+      if (!data.session) {   // E-Mail-Bestätigung nötig (kein Token vor Bestätigung)
+        status('✅ Fast geschafft! Wir haben dir eine Bestätigungsmail an ' + email + ' geschickt. Bestätige den Link und logge dich dann ein.');
+        return false;
+      }
+      return true;   // (Bestätigung deaktiviert → sofort eingeloggt; onAuthStateChange übernimmt)
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+      if (error) { status('⚠️ ' + authErrorText(error), true); return false; }
+      return true;
     }
-    const msg = json.error
-      || (res.status === 401 ? 'E-Mail oder Passwort falsch'
-        : res.status === 409 ? 'E-Mail ist bereits registriert'
-        : 'Fehler ' + res.status);
-    status('⚠️ ' + msg, true);
-    return false;
-  }
-  // Registrierung stellt KEIN Token aus, sondern verschickt eine Bestätigungsmail.
-  if (mode === 'up' || !json.token) {
-    status('✅ Fast geschafft! Wir haben dir eine Bestätigungsmail an ' + (json.email || email) + ' geschickt. Bestätige den Link und logge dich dann ein.');
-    return false;
-  }
-  cloudToken = json.token;
-  cloudEmail = json.email;
-  localStorage.setItem(TOKEN_KEY, cloudToken);
-  localStorage.setItem(EMAIL_KEY, cloudEmail);
-  status('Lade deine Daten…');
-  try {
-    await cloudAfterLogin(status);
   } catch (e) {
-    const m = (e && e.message) ? e.message : String(e);
-    status('⚠️ Angemeldet, aber Daten laden/speichern fehlgeschlagen: ' + m + '. Nutze ein NORMALES Fenster (kein privates) — dort ist genug Speicher.', true);
-    return true;   // login itself succeeded; data step can be retried
+    status('⚠️ Keine Verbindung zum Server.', true);
+    return false;
   }
-  return true;
+}
+
+// Supabase-Fehlermeldungen in verständliches Deutsch übersetzen.
+function authErrorText(error) {
+  const m = (error && error.message) || '';
+  if (/confirm/i.test(m))                                return 'E-Mail noch nicht bestätigt. Bitte den Link in deiner Mail anklicken (auch Spam-Ordner).';
+  if (/invalid login|invalid credentials/i.test(m))      return 'E-Mail oder Passwort falsch.';
+  if (/already|registered|exists/i.test(m))              return 'E-Mail ist bereits registriert.';
+  if (/rate limit|too many/i.test(m))                    return 'Zu viele Versuche — bitte kurz warten.';
+  return m || 'Anmeldung fehlgeschlagen.';
 }
 
 // Handlers used in the Ziele tab
@@ -2118,18 +2100,9 @@ function cloudSignIn() {
 }
 
 // Handlers used on the login screen (before picking a profile)
-async function loginCloudSignUp() {
-  const ok = await doCloudAuth('up', document.getElementById('login-cloud-email').value, document.getElementById('login-cloud-pw').value, loginCloudStatus);
-  if (ok) afterLoginCloudAuth();
-}
 async function loginCloudSignIn() {
-  const ok = await doCloudAuth('in', document.getElementById('login-cloud-email').value, document.getElementById('login-cloud-pw').value, loginCloudStatus);
-  if (ok) afterLoginCloudAuth();
-}
-function afterLoginCloudAuth() {
-  // If a conflict dialog opened, let the user's choice (and applyCloudSnapshot) refresh the view.
-  if (document.getElementById('modal-cloud-conflict').classList.contains('open')) return;
-  resolvePostLogin();   // erstes Profil anlegen / Profil-Auswahl zeigen
+  // Erfolg → onAuthStateChange(SIGNED_IN) → handleSignedIn übernimmt das Weiterleiten.
+  await doCloudAuth('in', document.getElementById('login-cloud-email').value, document.getElementById('login-cloud-pw').value, loginCloudStatus);
 }
 function loginCloudStatus(msg, isErr) {
   const el = document.getElementById('login-cloud-status');
@@ -2139,30 +2112,30 @@ function loginCloudStatus(msg, isErr) {
   el.textContent = msg;
 }
 
-// Social-Login: volle Seiten-Weiterleitung zum Backend, das den OAuth-Tanz übernimmt.
-function cloudOAuth(provider) {
-  location.href = API_BASE + '/oauth2/authorization/' + provider;
+// Social-Login über Supabase (volle Seiten-Weiterleitung zu Google/GitHub und zurück).
+async function cloudOAuth(provider) {
+  const { error } = await sb.auth.signInWithOAuth({ provider, options: { redirectTo: REDIRECT_URL } });
+  if (error) alert('Anmeldung mit ' + provider + ' fehlgeschlagen: ' + error.message);
 }
 
-// Bestätigungsmail erneut anfordern. Neutrale Rückmeldung (verrät nicht, ob das Konto existiert).
+// Bestätigungsmail erneut anfordern (über Supabase). Neutrale Rückmeldung.
 async function cloudResendWith(email, status) {
   email = (email || '').trim();
   if (!email || !/.+@.+\..+/.test(email)) { status('⚠️ Bitte zuerst deine E-Mail eingeben.', true); return; }
   status('Sende Bestätigungsmail…');
   try {
-    const res = await api('/api/auth/resend', { method: 'POST', body: { email } });
-    if (res.ok) status('✅ Falls ein Konto existiert, ist eine neue Bestätigungsmail unterwegs. Bitte Postfach (und Spam) prüfen.');
-    else status('⚠️ Konnte nicht senden (Fehler ' + res.status + '). Bitte später erneut versuchen.', true);
+    await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: REDIRECT_URL } });
+    status('✅ Falls ein Konto existiert (und noch nicht bestätigt ist), ist eine neue Bestätigungsmail unterwegs. Postfach & Spam prüfen.');
   } catch (e) {
-    status('⚠️ Keine Verbindung zum Server.', true);
+    status('⚠️ Konnte nicht senden. Bitte später erneut versuchen.', true);
   }
 }
 function cloudResend()      { cloudResendWith(document.getElementById('cloud-email').value, setCloudStatus); }
 function loginCloudResend() { cloudResendWith(document.getElementById('login-cloud-email').value, loginCloudStatus); }
 
-function cloudSignOut() {
+async function cloudSignOut() {
+  await sb.auth.signOut();
   cloudToken = null; cloudEmail = null; cloudLastSync = null;
-  localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(EMAIL_KEY);
   renderCloudUI();
 }
 
