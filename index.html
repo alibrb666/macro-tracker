@@ -885,25 +885,33 @@ body {
       <div class="login-app-name">Macro Tracker</div>
     </div>
 
+    <!-- View: Einstieg (Einloggen / Registrieren / ohne Konto) -->
+    <div class="login-view" id="login-home" style="display:none">
+      <div class="login-heading">Willkommen!</div>
+      <div class="login-sub">Melde dich an oder erstelle ein Konto — oder nutze die App lokal ohne Konto.</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+        <button class="btn-primary" onclick="loginShowCloud()">Einloggen</button>
+        <button class="btn-outline" onclick="loginShowRegister()">Registrieren</button>
+      </div>
+      <button class="login-cloud-link" onclick="loginContinueOffline()" style="margin-top:14px">Ohne Konto fortfahren</button>
+    </div>
+
     <!-- View: Profil-Auswahl -->
-    <div class="login-view" id="login-select">
+    <div class="login-view" id="login-select" style="display:none">
       <div class="login-heading">Wer bist du?</div>
       <div class="login-sub">Wähle dein Profil aus</div>
       <div class="profile-grid" id="profile-grid"></div>
-      <button class="login-cloud-link" onclick="loginShowCloud()">☁️ Mit Cloud-Konto anmelden</button>
+      <button class="login-cloud-link" onclick="loginShowHome()">☁️ Anmelden / Konto verbinden</button>
     </div>
 
     <!-- View: Cloud-Anmeldung -->
     <div class="login-view" id="login-cloud" style="display:none">
-      <button class="login-back" onclick="loginShowSelect()">← Zurück</button>
-      <div class="login-heading">☁️ Cloud-Konto</div>
-      <div class="login-sub">Melde dich an — deine Profile werden geladen</div>
+      <button class="login-back" onclick="loginShowHome()">← Zurück</button>
+      <div class="login-heading">Einloggen</div>
+      <div class="login-sub">Mit deinem Konto anmelden</div>
       <input type="email" class="login-name-input" id="login-cloud-email" placeholder="E-Mail" autocomplete="email">
-      <input type="password" class="login-name-input" id="login-cloud-pw" placeholder="Passwort (mind. 6 Zeichen)" autocomplete="current-password" style="margin-top:10px">
-      <div style="display:flex;gap:10px;margin-top:14px">
-        <button class="btn-primary" onclick="loginCloudSignIn()" style="flex:1">Einloggen</button>
-        <button class="btn-outline" onclick="loginCloudSignUp()" style="flex:1">Registrieren</button>
-      </div>
+      <input type="password" class="login-name-input" id="login-cloud-pw" placeholder="Passwort" autocomplete="current-password" style="margin-top:10px">
+      <button class="btn-primary" onclick="loginCloudSignIn()" style="width:100%;margin-top:14px">Einloggen</button>
       <div class="divider">oder</div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <button class="btn-outline" onclick="cloudOAuth('google')" style="display:flex;align-items:center;justify-content:center;gap:10px">
@@ -919,9 +927,29 @@ body {
       <button class="login-cloud-link" onclick="loginCloudResend()" style="margin-top:4px">✉️ Bestätigungsmail erneut senden</button>
     </div>
 
+    <!-- View: Registrieren (Konto) -->
+    <div class="login-view" id="login-register" style="display:none">
+      <button class="login-back" onclick="loginShowHome()">← Zurück</button>
+      <div class="login-heading">Registrieren</div>
+      <div class="login-sub">Gib deinen Namen ein und wähle, wie du dich anmelden möchtest.</div>
+      <input type="text" class="login-name-input" id="reg-name" placeholder="Dein Name" maxlength="20" oninput="updateRegMethods()">
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+        <button class="btn-outline" id="reg-m-email"  onclick="regChooseEmail()" disabled>✉️ Mit E-Mail &amp; Passwort</button>
+        <button class="btn-outline" id="reg-m-google" onclick="regOAuth('google')" disabled>Mit Google</button>
+        <button class="btn-outline" id="reg-m-github" onclick="regOAuth('github')" disabled>Mit GitHub</button>
+      </div>
+      <div id="reg-email-form" style="display:none;margin-top:14px">
+        <div class="divider">E-Mail &amp; Passwort</div>
+        <input type="email" class="login-name-input" id="reg-email" placeholder="E-Mail" autocomplete="email">
+        <input type="password" class="login-name-input" id="reg-pw" placeholder="Passwort (mind. 6 Zeichen)" autocomplete="new-password" style="margin-top:10px">
+        <button class="btn-primary" onclick="loginRegisterSubmit()" style="width:100%;margin-top:14px">Konto erstellen</button>
+      </div>
+      <div id="login-reg-status" style="display:none;font-size:13px;text-align:center;padding:10px 4px;line-height:1.5"></div>
+    </div>
+
     <!-- View: Neues Profil (Name + Emoji) -->
     <div class="login-view" id="login-create" style="display:none">
-      <button class="login-back" onclick="loginShowSelect()">← Zurück</button>
+      <button class="login-back" onclick="loginBackFromCreate()">← Zurück</button>
       <div class="login-heading">Neues Profil</div>
       <div class="login-sub">Wähle Name und Avatar</div>
       <input type="text" class="login-name-input" id="create-name" placeholder="Dein Name" maxlength="20" oninput="updateCreateNext()">
@@ -1487,6 +1515,7 @@ const TOTAL_STEPS = 6;
 // ===== AUTH / MULTI-USER =====
 const USERS_KEY  = 'mt-users';      // [{ id, name, emoji, pinHash }]
 const LEGACY_KEY = 'macro-tracker'; // alte Single-User-Daten
+const PENDING_NAME_KEY = 'mt-pending-profile-name'; // bei Registrierung gemerkter Profilname
 const EMPTY_DB   = () => ({ foods:[], log:{}, goals:{kcal:2000,protein:150,carbs:250,fat:65}, profile:null, weights:[] });
 const AVATARS    = ['🙂','💪','🏃','🥗','🔥','⭐','🦁','🐻','🦊','🐱','🦄','🌸','🏆','🎯','🚀','🍎','🥑','🧗'];
 
@@ -1542,6 +1571,9 @@ function init() {
   if (redirect.confirmed === true)  { loginShowCloud(); loginCloudStatus('✅ E-Mail bestätigt! Du kannst dich jetzt einloggen.'); }
   if (redirect.confirmed === false) { loginShowCloud(); loginCloudStatus('⚠️ Bestätigungslink ungültig oder abgelaufen. Fordere einen neuen an.', true); }
   if (redirect.oauthError)          { loginShowCloud(); loginCloudStatus('⚠️ Anmeldung mit dem Anbieter fehlgeschlagen. Bitte erneut versuchen.', true); }
+  // Nach erfolgreichem OAuth-Login: Profil anlegen/öffnen (der stille Sync läuft
+  // parallel und korrigiert die Ansicht ggf. nach, sobald die Daten da sind).
+  if (redirect.oauth) resolvePostLogin();
 }
 
 // Liest OAuth-/Bestätigungs-Parameter aus der URL, speichert ggf. das Token und
@@ -1576,8 +1608,45 @@ function consumeAuthRedirect() {
 function showLogin() {
   document.getElementById('login-screen').classList.remove('hidden');
   loadUsers();
-  // Always show the picker (with "Neues Profil" + cloud login) so a fresh
-  // device can sign into the cloud to pull existing profiles.
+  // Hat das Gerät schon Profile → direkt zur Auswahl; sonst der Einstieg
+  // (Einloggen / Registrieren / ohne Konto).
+  if (users.length) loginShowSelect();
+  else loginShowHome();
+}
+
+// Zeigt genau EINE Login-Ansicht, blendet die anderen aus.
+function showLoginView(id) {
+  ['login-home','login-select','login-cloud','login-register','login-create','login-pin']
+    .forEach(v => { const el = document.getElementById(v); if (el) el.style.display = (v === id ? 'block' : 'none'); });
+}
+function loginShowHome() { showLoginView('login-home'); }
+
+function loginContinueOffline() {
+  loadUsers();
+  if (users.length) loginShowSelect();
+  else loginShowCreate();
+}
+function loginBackFromCreate() {
+  loadUsers();
+  if (users.length) loginShowSelect();
+  else loginShowHome();
+}
+
+// Nach erfolgreichem Konto-Login: ggf. das erste Profil aus dem bei der
+// Registrierung gemerkten Namen anlegen (ohne PIN — das Konto sichert ab),
+// sonst zur Profil-Auswahl. Ein einzelnes Konto-Profil (ohne PIN) wird direkt geöffnet.
+function resolvePostLogin() {
+  loadUsers();
+  const pending = localStorage.getItem(PENDING_NAME_KEY);
+  if (!users.length && pending) {
+    localStorage.removeItem(PENDING_NAME_KEY);
+    const user = { id: uid(), name: pending.slice(0, 20) || 'Profil', emoji: AVATARS[0] };  // kein pinHash
+    users.push(user);
+    saveUsers();
+    enterApp(user);
+    return;
+  }
+  if (users.length === 1 && !users[0].pinHash) { enterApp(users[0]); return; }
   loginShowSelect();
 }
 
@@ -1606,20 +1675,52 @@ function logout() {
 
 // ── Login-Views ──────────────────────────────────────
 function loginShowCloud() {
-  document.getElementById('login-select').style.display = 'none';
-  document.getElementById('login-create').style.display = 'none';
-  document.getElementById('login-pin').style.display    = 'none';
-  document.getElementById('login-cloud').style.display  = 'block';
+  showLoginView('login-cloud');
   const st = document.getElementById('login-cloud-status');
   if (st) st.style.display = 'none';
 }
 
+// Registrieren-Ansicht: Name zuerst, Methoden erst danach klickbar.
+function loginShowRegister() {
+  showLoginView('login-register');
+  document.getElementById('reg-name').value = '';
+  document.getElementById('reg-email-form').style.display = 'none';
+  ['reg-email','reg-pw'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  const st = document.getElementById('login-reg-status'); if (st) st.style.display = 'none';
+  updateRegMethods();
+}
+function updateRegMethods() {
+  const ok = document.getElementById('reg-name').value.trim().length >= 1;
+  ['reg-m-email','reg-m-google','reg-m-github'].forEach(id => document.getElementById(id).disabled = !ok);
+}
+function regChooseEmail() {
+  document.getElementById('reg-email-form').style.display = 'block';
+  document.getElementById('reg-email').focus();
+}
+function regOAuth(provider) {
+  const name = document.getElementById('reg-name').value.trim();
+  if (name) localStorage.setItem(PENDING_NAME_KEY, name.slice(0, 20));
+  cloudOAuth(provider);
+}
+async function loginRegisterSubmit() {
+  const name = document.getElementById('reg-name').value.trim();
+  if (name) localStorage.setItem(PENDING_NAME_KEY, name.slice(0, 20));
+  await doCloudAuth('up',
+    document.getElementById('reg-email').value,
+    document.getElementById('reg-pw').value,
+    loginRegStatus);
+}
+function loginRegStatus(msg, isErr) {
+  const el = document.getElementById('login-reg-status');
+  if (!el) return;
+  el.style.display = 'block';
+  el.style.color = isErr ? 'var(--danger)' : 'var(--muted)';
+  el.textContent = msg;
+}
+
 function loginShowSelect() {
   loadUsers();
-  document.getElementById('login-create').style.display = 'none';
-  document.getElementById('login-pin').style.display    = 'none';
-  document.getElementById('login-cloud').style.display  = 'none';
-  document.getElementById('login-select').style.display = 'block';
+  showLoginView('login-select');
 
   const grid = document.getElementById('profile-grid');
   grid.innerHTML = users.map(u => `
@@ -1634,9 +1735,7 @@ function loginShowSelect() {
 }
 
 function loginShowCreate() {
-  document.getElementById('login-select').style.display = 'none';
-  document.getElementById('login-pin').style.display    = 'none';
-  document.getElementById('login-create').style.display = 'block';
+  showLoginView('login-create');
 
   newProfile = { name: '', emoji: AVATARS[0] };
   document.getElementById('create-name').value = '';
@@ -1666,14 +1765,13 @@ function createGoToPin() {
 function loginPickUser(id) {
   pinTarget = users.find(u => u.id === id);
   if (!pinTarget) return;
+  if (!pinTarget.pinHash) { enterApp(pinTarget); return; }  // Konto-Profil ohne PIN → direkt rein
   pinMode = 'enter';
   showPinView(pinTarget.emoji, pinTarget.name, 'PIN eingeben');
 }
 
 function showPinView(emoji, name, prompt) {
-  document.getElementById('login-select').style.display = 'none';
-  document.getElementById('login-create').style.display = 'none';
-  document.getElementById('login-pin').style.display    = 'block';
+  showLoginView('login-pin');
   document.getElementById('pin-avatar').textContent = emoji;
   document.getElementById('pin-name').textContent   = name;
   document.getElementById('pin-prompt').textContent = prompt;
@@ -1833,10 +1931,11 @@ function applyCloudSnapshot(snap) {
       if (users.some(u => u.id === currentUser.id)) { loadUserDB(currentUser.id); refreshAll(); }
       else { logout(); return; }
     } else {
-      // On the login screen: refresh the profile picker so synced profiles appear immediately
+      // On the login screen: resolve where to go (auto-create first profile from a
+      // pending registration name, auto-enter a single account profile, or show the picker).
       const loginScreen = document.getElementById('login-screen');
-      if (loginScreen && !loginScreen.classList.contains('hidden') && users.length) {
-        loginShowSelect();
+      if (loginScreen && !loginScreen.classList.contains('hidden')) {
+        resolvePostLogin();
       }
     }
   } finally {
@@ -1959,7 +2058,7 @@ async function resolveCloudConflict(choice) {
   cloudPendingRemote = null;
   renderCloudUI();
   const loginScreen = document.getElementById('login-screen');
-  if (loginScreen && !loginScreen.classList.contains('hidden')) loginShowSelect();
+  if (loginScreen && !loginScreen.classList.contains('hidden')) resolvePostLogin();
 }
 
 // Shared auth core. mode: 'up' (register) | 'in' (login). status: message callback.
@@ -2030,7 +2129,7 @@ async function loginCloudSignIn() {
 function afterLoginCloudAuth() {
   // If a conflict dialog opened, let the user's choice (and applyCloudSnapshot) refresh the view.
   if (document.getElementById('modal-cloud-conflict').classList.contains('open')) return;
-  loginShowSelect();   // show the (now synced) profile list
+  resolvePostLogin();   // erstes Profil anlegen / Profil-Auswahl zeigen
 }
 function loginCloudStatus(msg, isErr) {
   const el = document.getElementById('login-cloud-status');
