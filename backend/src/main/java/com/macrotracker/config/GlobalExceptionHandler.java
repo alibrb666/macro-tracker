@@ -1,5 +1,7 @@
 package com.macrotracker.config;
 
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -34,5 +36,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleStatus(ResponseStatusException ex) {
         String message = ex.getReason() != null ? ex.getReason() : "Fehler";
         return ResponseEntity.status(ex.getStatusCode()).body(Map.of("error", message));
+    }
+
+    /**
+     * Verletzung einer DB-Constraint. Praktisch nur die eindeutige E-Mail: zwei
+     * gleichzeitige Registrierungen kommen am existsByEmail-Check vorbei und lösen
+     * dann diesen Fehler aus → sauberes 409 statt eines generischen 500.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleIntegrity(DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "E-Mail ist bereits registriert"));
     }
 }
