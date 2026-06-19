@@ -1848,17 +1848,25 @@ function localHasData() {
   });
 }
 
-// After login: decide load vs upload vs ask
-async function cloudAfterLogin() {
+// After login: decide load vs upload vs ask.
+// `status` shows fine-grained progress so a hang can be pinpointed.
+async function cloudAfterLogin(status) {
+  status = status || setCloudStatus;
   renderCloudUI();
   let remote = null;
-  try {
-    const res = await api('/api/data', { auth: true });
-    if (res.ok) { const j = await res.json(); remote = j && j.data ? j.data : null; }
-  } catch (e) { /* offline → treat as no remote */ }
+  status('1/4 Hole Daten vom Server…');
+  const res = await api('/api/data', { auth: true, timeoutMs: 45000 });
+  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return; }
+  if (res.ok) {
+    status('2/4 Empfange Daten…');
+    const txt = await res.text();
+    status('3/4 Verarbeite Daten… (' + Math.round(txt.length/1024) + ' KB)');
+    const j = JSON.parse(txt);
+    remote = j && j.data ? j.data : null;
+  }
   const hasRemote = remote && (((remote.users||[]).length) || (remote.profiles && Object.keys(remote.profiles).length));
-  if (!hasRemote)      { await cloudPush(); return; }                 // first device → upload local
-  if (!localHasData()) { applyCloudSnapshot(remote); cloudLastSync = new Date(); renderCloudUI(); return; }
+  if (!hasRemote)      { status('Lade hoch…'); await cloudPush(); return; }  // first device → upload local
+  if (!localHasData()) { status('4/4 Speichere lokal…'); applyCloudSnapshot(remote); cloudLastSync = new Date(); renderCloudUI(); return; }
   // Both sides have data → ask the user
   cloudPendingRemote = remote;
   const rProfiles = remote.profiles ? Object.keys(remote.profiles).length : 0;
@@ -1912,7 +1920,7 @@ async function doCloudAuth(mode, email, pw, status) {
   localStorage.setItem(EMAIL_KEY, cloudEmail);
   status('Lade deine Daten…');
   try {
-    await cloudAfterLogin();
+    await cloudAfterLogin(status);
   } catch (e) {
     const m = (e && e.message) ? e.message : String(e);
     status('⚠️ Angemeldet, aber Daten laden/speichern fehlgeschlagen: ' + m + '. Nutze ein NORMALES Fenster (kein privates) — dort ist genug Speicher.', true);
