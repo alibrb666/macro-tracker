@@ -2171,7 +2171,7 @@ function renderToday() {
           const food = db.foods.find(f => f.id === e.foodId);
           const name = food ? food.name : 'Unbekannt';
           const thumb = food && food.photo
-            ? `<div class="meal-log-thumb"><img src="${food.photo}"></div>`
+            ? `<div class="meal-log-thumb"><img src="${food.photo}" loading="lazy" decoding="async"></div>`
             : `<div class="meal-log-thumb">🍴</div>`;
           return `
             <div class="meal-log-item"
@@ -2553,7 +2553,7 @@ function getRecentFoodIds(limit = 6) {
 
 function foodSelectItem(food) {
   const thumb = food.photo
-    ? `<div class="select-thumb"><img src="${food.photo}"></div>`
+    ? `<div class="select-thumb"><img src="${food.photo}" loading="lazy" decoding="async"></div>`
     : `<div class="select-thumb">🍴</div>`;
   const sel = food.id === selectedFoodId ? 'selected' : '';
   return `
@@ -2691,7 +2691,7 @@ function renderLibrary(q = '') {
   }
   document.getElementById('lib-grid').innerHTML = foods.map(food => {
     const photo = food.photo
-      ? `<img src="${food.photo}">`
+      ? `<img src="${food.photo}" loading="lazy" decoding="async">`
       : `<span style="font-size:40px">🍴</span>`;
     return `
       <div class="food-card">
