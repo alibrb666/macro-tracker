@@ -1,0 +1,16 @@
+# Maven-Build-Ausgabe
+target/
+
+# Umgebungsvariablen mit Geheimnissen — NIEMALS committen!
+.env
+
+# IDE-Dateien
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
