@@ -1718,15 +1718,23 @@ let cloudLastSync  = null;
 let cloudApplying  = false;  // suppress push while applying a pulled snapshot
 let cloudPendingRemote = null;
 
-// Kleiner Helfer für API-Aufrufe ans Backend.
-async function api(path, { method = 'GET', body, auth = false } = {}) {
+// Kleiner Helfer für API-Aufrufe ans Backend. Mit Timeout, damit eine hängende
+// Anfrage nicht ewig wartet, sondern sauber abbricht.
+async function api(path, { method = 'GET', body, auth = false, timeoutMs = 30000 } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (auth && cloudToken) headers['Authorization'] = 'Bearer ' + cloudToken;
-  return fetch(API_BASE + path, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(API_BASE + path, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Token abgelaufen/ungültig → ausloggen und Hinweis zeigen.
@@ -1759,23 +1767,26 @@ function cloudSnapshot() {
 function applyCloudSnapshot(snap) {
   if (!snap) return;
   cloudApplying = true;
-  if (Array.isArray(snap.users)) { users = snap.users; saveUsers(); }
-  if (snap.profiles) {
-    Object.keys(snap.profiles).forEach(id =>
-      localStorage.setItem(dataKey(id), JSON.stringify(snap.profiles[id])));
-  }
-  setCloudMarker(snap.savedAt);
-  if (currentUser) {
-    if (users.some(u => u.id === currentUser.id)) { loadUserDB(currentUser.id); refreshAll(); }
-    else { cloudApplying = false; logout(); return; }
-  } else {
-    // On the login screen: refresh the profile picker so synced profiles appear immediately
-    const loginScreen = document.getElementById('login-screen');
-    if (loginScreen && !loginScreen.classList.contains('hidden') && users.length) {
-      loginShowSelect();
+  try {
+    if (Array.isArray(snap.users)) { users = snap.users; saveUsers(); }
+    if (snap.profiles) {
+      Object.keys(snap.profiles).forEach(id =>
+        localStorage.setItem(dataKey(id), JSON.stringify(snap.profiles[id])));
     }
+    setCloudMarker(snap.savedAt);
+    if (currentUser) {
+      if (users.some(u => u.id === currentUser.id)) { loadUserDB(currentUser.id); refreshAll(); }
+      else { logout(); return; }
+    } else {
+      // On the login screen: refresh the profile picker so synced profiles appear immediately
+      const loginScreen = document.getElementById('login-screen');
+      if (loginScreen && !loginScreen.classList.contains('hidden') && users.length) {
+        loginShowSelect();
+      }
+    }
+  } finally {
+    cloudApplying = false;   // never leave sync wedged, even if a write throws
   }
-  cloudApplying = false;
 }
 
 function refreshAll() {
@@ -1899,7 +1910,14 @@ async function doCloudAuth(mode, email, pw, status) {
   cloudEmail = json.email;
   localStorage.setItem(TOKEN_KEY, cloudToken);
   localStorage.setItem(EMAIL_KEY, cloudEmail);
-  await cloudAfterLogin();
+  status('Lade deine Daten…');
+  try {
+    await cloudAfterLogin();
+  } catch (e) {
+    const m = (e && e.message) ? e.message : String(e);
+    status('⚠️ Angemeldet, aber Daten laden/speichern fehlgeschlagen: ' + m + '. Nutze ein NORMALES Fenster (kein privates) — dort ist genug Speicher.', true);
+    return true;   // login itself succeeded; data step can be retried
+  }
   return true;
 }
 
