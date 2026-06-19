@@ -1861,12 +1861,28 @@ async function cloudAfterLogin(status) {
     status('2/4 Empfange Daten…');
     const txt = await res.text();
     status('3/4 Verarbeite Daten… (' + Math.round(txt.length/1024) + ' KB)');
-    const j = JSON.parse(txt);
-    remote = j && j.data ? j.data : null;
+    await new Promise(r => setTimeout(r, 40));   // let the UI paint "3/4"
+    try {
+      const j = JSON.parse(txt);
+      remote = j && j.data ? j.data : null;
+    } catch (e) {
+      status('⚠️ Daten beschädigt (Parse): ' + (e && e.message || e), true);
+      return;
+    }
   }
   const hasRemote = remote && (((remote.users||[]).length) || (remote.profiles && Object.keys(remote.profiles).length));
-  if (!hasRemote)      { status('Lade hoch…'); await cloudPush(); return; }  // first device → upload local
-  if (!localHasData()) { status('4/4 Speichere lokal…'); applyCloudSnapshot(remote); cloudLastSync = new Date(); renderCloudUI(); return; }
+  if (!hasRemote) { status('Lade hoch…'); await cloudPush(); return; }  // first device → upload local
+  if (!localHasData()) {
+    status('4/4 Speichere lokal…');
+    await new Promise(r => setTimeout(r, 40));   // paint "4/4" before the heavy synchronous write
+    try {
+      applyCloudSnapshot(remote);
+    } catch (e) {
+      status('⚠️ Speichern fehlgeschlagen: ' + (e && e.message || e) + ' (privates Fenster / Speicher voll?)', true);
+      return;
+    }
+    cloudLastSync = new Date(); renderCloudUI(); return;
+  }
   // Both sides have data → ask the user
   cloudPendingRemote = remote;
   const rProfiles = remote.profiles ? Object.keys(remote.profiles).length : 0;
