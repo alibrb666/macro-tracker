@@ -48,9 +48,9 @@ public class SecurityConfig {
             // Stateless: der Server merkt sich nichts zwischen Anfragen — alles steckt im JWT.
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()   // Login/Register offen
-                .requestMatchers("/", "/health").permitAll()    // Health-Check offen
-                .anyRequest().authenticated()                   // alles andere braucht Login
+                .requestMatchers("/api/auth/**").permitAll()       // Login/Register offen
+                .requestMatchers("/", "/health", "/error").permitAll() // Health + Fehlerseite offen
+                .anyRequest().authenticated()                      // alles andere braucht Login
             )
             // Unseren JWT-Filter vor dem Standard-Login-Filter einhängen.
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
