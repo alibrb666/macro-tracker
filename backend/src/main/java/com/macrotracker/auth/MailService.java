@@ -1,27 +1,34 @@
 package com.macrotracker.auth;
 
-import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
-import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Versendet die Bestätigungs-E-Mail über JavaMailSender (SMTP).
+ * Versendet die Bestätigungs-E-Mail über die Resend-HTTP-API (https://api.resend.com).
  *
- * Standardmäßig auf Resend konfiguriert (smtp.resend.com), per Umgebungs-
- * variablen aber auf jeden anderen SMTP-Anbieter umstellbar.
+ * Bewusst HTTP (Port 443) statt SMTP: Hoster wie Railway blockieren ausgehende
+ * SMTP-Ports oft, wodurch der Versand ewig hängt. Über die HTTP-API mit festen
+ * Connect-/Read-Timeouts schlägt ein Problem schnell und sauber fehl (→ 502),
+ * statt die Anfrage hängen zu lassen.
  */
 @Service
 public class MailService {
 
     private static final Logger log = LoggerFactory.getLogger(MailService.class);
 
-    private final JavaMailSender mailSender;
+    private final RestClient rest;
+
+    /** Resend-API-Key. Wird aus der vorhandenen Env-Var MAIL_PASSWORD gelesen. */
+    @Value("${app.resend.api-key:}")
+    private String apiKey;
 
     @Value("${app.mail.from}")
     private String from;
@@ -29,8 +36,11 @@ public class MailService {
     @Value("${app.backend-url}")
     private String backendUrl;
 
-    public MailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
+    public MailService() {
+        SimpleClientHttpRequestFactory f = new SimpleClientHttpRequestFactory();
+        f.setConnectTimeout(5000);   // 5 s zum Verbinden
+        f.setReadTimeout(15000);     // 15 s auf Antwort — bleibt klar unter dem Frontend-Timeout
+        this.rest = RestClient.builder().requestFactory(f).build();
     }
 
     /** Schickt den Bestätigungslink an die angegebene E-Mail. */
@@ -52,13 +62,18 @@ public class MailService {
             """.formatted(link, link, link);
 
         try {
-            MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(msg, false, StandardCharsets.UTF_8.name());
-            helper.setFrom(from);
-            helper.setTo(to);
-            helper.setSubject("Bestätige deine E-Mail · Macro Tracker");
-            helper.setText(html, true);
-            mailSender.send(msg);
+            rest.post()
+                .uri("https://api.resend.com/emails")
+                .header("Authorization", "Bearer " + apiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of(
+                    "from", from,
+                    "to", List.of(to),
+                    "subject", "Bestätige deine E-Mail · Macro Tracker",
+                    "html", html
+                ))
+                .retrieve()
+                .toBodilessEntity();   // wirft bei 4xx/5xx → unten als Fehlversand behandelt
         } catch (Exception e) {
             log.error("Versand der Bestätigungsmail an {} fehlgeschlagen", to, e);
             throw new MailSendFailedException();
