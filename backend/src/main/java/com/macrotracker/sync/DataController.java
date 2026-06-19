@@ -37,7 +37,7 @@ public class DataController {
     public record DataRequest(JsonNode data) { }
 
     @GetMapping
-    public DataResponse get(@AuthenticationPrincipal Long userId) throws Exception {
+    public DataResponse get(@AuthenticationPrincipal String userId) throws Exception {
         AppData row = repo.findById(userId).orElse(null);
         if (row == null || row.getDataJson() == null) {
             return new DataResponse(null, null);   // noch nichts gespeichert
@@ -47,7 +47,7 @@ public class DataController {
     }
 
     @PutMapping
-    public DataResponse put(@AuthenticationPrincipal Long userId,
+    public DataResponse put(@AuthenticationPrincipal String userId,
                             @RequestBody DataRequest request) {
         String json = request.data() == null ? "{}" : request.data().toString();
 

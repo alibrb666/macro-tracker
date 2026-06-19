@@ -6,18 +6,18 @@ import java.time.Instant;
 /**
  * Die kompletten App-Daten EINES Benutzers als ein JSON-Block.
  *
- * Genau wie zuvor bei Supabase: pro Konto eine Zeile, die alles enthält
- * (alle Profile, getrackte Tage, Lebensmittel, Ziele, Gewichte).
- * Gespeichert wird der JSON-Text in einer TEXT-Spalte.
+ * Schlüssel ist die Supabase-User-UUID (Auth läuft komplett über Supabase).
+ * Pro Konto eine Zeile, die alles enthält (Profile, Tage, Lebensmittel, Ziele,
+ * Gewichte). Gespeichert als JSON-Text in einer TEXT-Spalte.
  */
 @Entity
-@Table(name = "mt_app_data")
+@Table(name = "mt_user_data")
 public class AppData {
 
-    /** Primärschlüssel = die User-ID (1:1-Beziehung Benutzer ↔ Datenblock). */
+    /** Primärschlüssel = Supabase-User-UUID (als Text). */
     @Id
-    @Column(name = "user_id")
-    private Long userId;
+    @Column(name = "user_id", length = 64)
+    private String userId;
 
     /** Der rohe JSON-Text (columnDefinition = text → beliebig lang). */
     @Column(name = "data_json", columnDefinition = "text")
@@ -28,13 +28,13 @@ public class AppData {
 
     protected AppData() { }
 
-    public AppData(Long userId, String dataJson) {
+    public AppData(String userId, String dataJson) {
         this.userId = userId;
         this.dataJson = dataJson;
         this.updatedAt = Instant.now();
     }
 
-    public Long getUserId() { return userId; }
+    public String getUserId() { return userId; }
     public String getDataJson() { return dataJson; }
     public void setDataJson(String dataJson) { this.dataJson = dataJson; }
     public Instant getUpdatedAt() { return updatedAt; }

@@ -1,25 +1,21 @@
 -- ===========================================================================
---  Einmalige Migration für E-Mail-Bestätigung + Social-Login (Google/GitHub)
+--  Umstieg auf Supabase Auth
 -- ===========================================================================
 --
---  NUR auf bereits bestehenden Datenbanken nötig (mit vorhandenen Nutzern).
---  Eine frische DB legt Hibernate (ddl-auto=update) korrekt selbst an.
+--  Die App nutzt jetzt Supabase Auth (Login/Registrierung/E-Mail-Bestätigung/
+--  Google/GitHub). Das Backend prüft nur noch Supabase-Tokens und speichert die
+--  Daten pro Supabase-User-UUID in der Tabelle "mt_user_data".
 --
---  Diese Datei ist IDEMPOTENT und deploy-reihenfolge-unabhängig: Sie legt die
---  neuen Spalten genau so an, wie Hibernate sie sonst anlegen würde. Mehrfaches
---  Ausführen oder Ausführen vor/nach dem Deploy ist unproblematisch.
+--  Diese Tabelle legt Hibernate (ddl-auto=update) beim Start AUTOMATISCH an —
+--  hier ist also normalerweise NICHTS zu tun.
+--
+--  Optional: die alten, nicht mehr genutzten Tabellen der früheren Eigen-Auth
+--  aufräumen. Vorher sicher sein, dass keine wichtigen Daten mehr drinstecken
+--  (die App-Daten lagen ohnehin lokal im Browser und werden nach dem Login neu
+--  in mt_user_data hochgeladen).
 --
 --  In Supabase ausführen:  SQL Editor → einfügen → Run.
 
--- 1) Social-Konten (Google/GitHub) haben KEIN Passwort → Spalte muss NULL erlauben.
---    (Diese eine Änderung nimmt Hibernate per "update" nicht selbst vor.)
-ALTER TABLE mt_users ALTER COLUMN password_hash DROP NOT NULL;
-
--- 2) Neue Spalten anlegen, falls noch nicht vorhanden (sonst übernimmt das Hibernate).
-ALTER TABLE mt_users ADD COLUMN IF NOT EXISTS email_verified boolean      NOT NULL DEFAULT false;
-ALTER TABLE mt_users ADD COLUMN IF NOT EXISTS provider        varchar(20)  NOT NULL DEFAULT 'LOCAL';
-ALTER TABLE mt_users ADD COLUMN IF NOT EXISTS provider_id     varchar(255);
-
--- 3) Bestehende (vor diesem Update angelegte) Konten als bestätigt markieren,
---    damit sich Alt-Nutzer weiter einloggen können.
-UPDATE mt_users SET email_verified = true WHERE email_verified = false;
+-- DROP TABLE IF EXISTS mt_email_tokens;
+-- DROP TABLE IF EXISTS mt_app_data;
+-- DROP TABLE IF EXISTS mt_users;

@@ -14,18 +14,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * Dieser Filter läuft EINMAL pro Anfrage, noch vor den Controllern.
+ * Läuft einmal pro Anfrage vor den Controllern.
  *
- * Er sucht den "Authorization: Bearer <token>"-Header, prüft das JWT und legt —
- * bei Erfolg — den angemeldeten Benutzer im Spring-SecurityContext ab. Danach
- * "weiß" Spring, dass die Anfrage authentifiziert ist (Principal = User-ID).
+ * Sucht den "Authorization: Bearer <token>"-Header, prüft das SUPABASE-JWT und
+ * legt bei Erfolg den angemeldeten Benutzer (Principal = Supabase-User-UUID) im
+ * Spring-SecurityContext ab. Danach gilt die Anfrage als authentifiziert.
  */
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    private final JwtService jwtService;
+    private final SupabaseJwtService jwtService;
 
-    public JwtAuthFilter(JwtService jwtService) {
+    public JwtAuthFilter(SupabaseJwtService jwtService) {
         this.jwtService = jwtService;
     }
 
@@ -39,13 +39,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
             try {
-                Long userId = jwtService.parseUserId(token);
-                // Authentifizierung in den SecurityContext setzen — Principal = User-ID.
+                String userId = jwtService.parseUserId(token);   // UUID-String
                 var auth = new UsernamePasswordAuthenticationToken(
                         userId, null, AuthorityUtils.NO_AUTHORITIES);
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (Exception ignored) {
-                // Ungültiges/abgelaufenes Token → bleibt einfach unauthentifiziert (führt zu 401).
+                // Ungültiges/abgelaufenes Token → bleibt unauthentifiziert (führt zu 401).
             }
         }
         filterChain.doFilter(request, response);
