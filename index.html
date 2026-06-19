@@ -1002,7 +1002,7 @@ body {
         <span class="input-unit">g</span>
       </div>
     </div>
-    <button class="btn-primary" onclick="saveGoals()">Ziele speichern</button>
+    <button class="btn-primary" onclick="saveGoals(this)">Ziele speichern</button>
   </div>
 
   <!-- Daten Export / Import -->
@@ -1703,7 +1703,13 @@ function finishCreateProfile(pinHash) {
 }
 
 function save() {
-  if (currentUser) localStorage.setItem(dataKey(currentUser.id), JSON.stringify(db));
+  try {
+    if (currentUser) localStorage.setItem(dataKey(currentUser.id), JSON.stringify(db));
+  } catch (e) {
+    // Quota überschritten (z. B. zu viele Fotos) oder privates Fenster ohne Speicher.
+    alert('⚠️ Speicher voll — der letzte Eintrag konnte nicht lokal gespeichert werden.\n\nLösche alte Fotos oder Einträge, um Platz zu schaffen.');
+    return;
+  }
   cloudSyncSoon();
 }
 
@@ -2061,18 +2067,21 @@ function matchQuery(name, q) {
 // Label for a count of unit pieces, e.g. (1,'Ei','Eier') → "1 Ei", (2,...) → "2 Eier"
 function unitCountLabel(count, label, plural) {
   const n = Math.abs(count - 1) < 1e-9 ? label : (plural || label);
-  return `${fmtNum(count)} ${n}`;
+  return `${fmtNum(count)} ${esc(n)}`;
 }
-function resizeImage(dataUrl, max = 800) {
+function resizeImage(dataUrl, max = 640) {
   return new Promise(res => {
     const img = new Image();
     img.onload = () => {
-      const s = Math.min(1, max / img.width);
-      const c = document.createElement('canvas');
-      c.width = img.width * s; c.height = img.height * s;
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      res(c.toDataURL('image/jpeg', 0.72));
+      try {
+        const s = Math.min(1, max / img.width);
+        const c = document.createElement('canvas');
+        c.width = img.width * s; c.height = img.height * s;
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        res(c.toDataURL('image/jpeg', 0.62));
+      } catch (e) { res(null); }
     };
+    img.onerror = () => res(null);   // korruptes/nicht dekodierbares Bild → nicht ewig hängen
     img.src = dataUrl;
   });
 }
@@ -2805,7 +2814,9 @@ async function handlePhoto(e) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = async ev => {
-    photoDataUrl = await resizeImage(ev.target.result);
+    const resized = await resizeImage(ev.target.result);
+    if (!resized) { alert('⚠️ Bild konnte nicht verarbeitet werden. Bitte ein anderes Foto wählen.'); return; }
+    photoDataUrl = resized;
     setOCRZonePhoto(photoDataUrl);
     document.getElementById('btn-ocr').disabled = false;
   };
@@ -2878,6 +2889,10 @@ function saveFood() {
   const serving = parseFloat(document.getElementById('food-serving').value) || 100;
   if (!name)                             { alert('Bitte einen Namen eingeben.'); return; }
   if ([kcal,protein,carbs,fat].some(isNaN)) { alert('Bitte alle Nährwerte ausfüllen.'); return; }
+  if ([kcal,protein,carbs,fat].some(v => v < 0)) { alert('Nährwerte dürfen nicht negativ sein.'); return; }
+  if (kcal > 1000 || [protein,carbs,fat].some(v => v > 100)) {
+    alert('Werte sind pro 100 g — Makros max. 100 g, Kalorien max. 1000 kcal.'); return;
+  }
   const unitLabel = document.getElementById('food-unit-label').value.trim();
   const unitG     = parseFloat(document.getElementById('food-unit-g').value);
   const unit      = (unitLabel && unitG > 0) ? { label: unitLabel, plural: unitLabel, g: unitG } : null;
@@ -2899,7 +2914,7 @@ function loadGoalsForm() {
   document.getElementById('goal-fat').value     = db.goals.fat;
 }
 
-function saveGoals() {
+function saveGoals(btn) {
   db.goals = {
     kcal:    parseFloat(document.getElementById('goal-kcal').value)    || 2000,
     protein: parseFloat(document.getElementById('goal-protein').value) || 150,
@@ -2907,7 +2922,7 @@ function saveGoals() {
     fat:     parseFloat(document.getElementById('goal-fat').value)     || 65,
   };
   save(); renderToday();
-  const btn = event.target;
+  if (!btn) return;
   const orig = btn.textContent;
   btn.textContent = '✅ Gespeichert!';
   setTimeout(() => btn.textContent = orig, 1800);
@@ -3326,6 +3341,14 @@ function openWizard() {
     if (p.gender)   document.getElementById('w1-next').disabled = false;
     if (p.activity) document.getElementById('w3-next').disabled = false;
     if (p.goal)     document.getElementById('w4-next').disabled = false;
+    // Build + pre-select the intensity step so step 5 isn't empty when editing.
+    if (p.goal && p.goal !== 'maintain') {
+      buildIntensityStep(p.goal);
+      document.querySelectorAll('#w5-choices .choice-btn').forEach(b => {
+        if (parseInt(b.dataset.val) === p.delta) b.classList.add('active');
+      });
+      if (p.delta) document.getElementById('w5-next').disabled = false;
+    }
   }
 
   renderWizardStep(1);
@@ -3361,8 +3384,8 @@ function pickChoice(btn, field) {
   if (field === 'activity') document.getElementById('w3-next').disabled = false;
   if (field === 'goal') {
     document.getElementById('w4-next').disabled = false;
-    // Prepare step 5 intensity options
-    buildIntensityStep(wData.goal);
+    // Prepare step 5 intensity options (only cut/bulk need an intensity; maintain skips it)
+    if (wData.goal !== 'maintain') buildIntensityStep(wData.goal);
   }
 }
 
@@ -3420,6 +3443,8 @@ function wizardNext() {
   if (wStep === 1 && !wData.gender) return;
   if (wStep === 3 && !wData.activity) return;
   if (wStep === 4 && !wData.goal) return;
+  // "Halten" braucht keine Intensität → Schritt 5 überspringen und direkt berechnen.
+  if (wStep === 4 && wData.goal === 'maintain') { wizardCalc(); return; }
   renderWizardStep(wStep + 1);
 }
 
@@ -3440,7 +3465,7 @@ function wizardBack() {
 }
 
 function wizardCalc() {
-  if (!wData.delta) return;
+  if (wData.goal !== 'maintain' && !wData.delta) return;
   const needs = computeNeeds(wData);
 
   // Save profile
@@ -3465,7 +3490,9 @@ function wizardCalc() {
 
   const dietTitle = p.goal === 'cut'
     ? `Diät <small>−${p.delta} kcal</small>`
-    : `Aufbau <small>+${p.delta} kcal</small>`;
+    : p.goal === 'bulk'
+    ? `Aufbau <small>+${p.delta} kcal</small>`
+    : `(= Erhaltung)`;
 
   document.getElementById('wizard-result-compare').innerHTML = `
     <div class="result-col">
@@ -3506,7 +3533,7 @@ function openModal(id)  { document.getElementById(id).classList.add('open');    
 function closeModal(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow = ''; }
 
 function esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ===== PRESET DATABASE =====
