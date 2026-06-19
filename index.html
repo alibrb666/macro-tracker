@@ -1446,7 +1446,6 @@ body {
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ===== STATE =====
 let db = {
@@ -1564,7 +1563,6 @@ function loginShowCloud() {
   document.getElementById('login-cloud').style.display  = 'block';
   const st = document.getElementById('login-cloud-status');
   if (st) st.style.display = 'none';
-  if (!sbClient) loginCloudStatus('⚠️ Cloud nicht verfügbar (offline?).', true);
 }
 
 function loginShowSelect() {
@@ -1709,29 +1707,43 @@ function save() {
   cloudSyncSoon();
 }
 
-// ===== CLOUD SYNC (Supabase) =====
-const SB_URL = 'https://pxeejfowdivavcqbigsc.supabase.co';
-const SB_KEY = 'sb_publishable_LuAC5OCNqKdPYejuNjvbTA_1F_Fz1im';
-let sbClient       = null;
-let cloudUser      = null;   // logged-in Supabase auth user
+// ===== CLOUD SYNC (eigenes Java/Spring-Boot-Backend) =====
+const API_BASE  = 'https://macro-tracker-backend-u5d9.onrender.com';
+const TOKEN_KEY = 'mt-cloud-token';
+const EMAIL_KEY = 'mt-cloud-email';
+let cloudToken     = null;   // JWT vom Backend (im localStorage gespeichert)
+let cloudEmail     = null;   // E-Mail des angemeldeten Cloud-Kontos
 let cloudPushTimer = null;
 let cloudLastSync  = null;
 let cloudApplying  = false;  // suppress push while applying a pulled snapshot
 let cloudPendingRemote = null;
 
-function initCloud() {
-  if (window.supabase && !sbClient) {
-    try { sbClient = window.supabase.createClient(SB_URL, SB_KEY); } catch(e) { sbClient = null; }
-  }
-  renderCloudUI();
-  if (!sbClient) return;
-  sbClient.auth.getSession().then(({ data }) => {
-    if (data && data.session) {
-      cloudUser = data.session.user;
-      renderCloudUI();
-      cloudPull({ silent: true });   // cloud is the cross-device source of truth on startup
-    }
+// Kleiner Helfer für API-Aufrufe ans Backend.
+async function api(path, { method = 'GET', body, auth = false } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth && cloudToken) headers['Authorization'] = 'Bearer ' + cloudToken;
+  return fetch(API_BASE + path, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
   });
+}
+
+// Token abgelaufen/ungültig → ausloggen und Hinweis zeigen.
+function handleAuthExpired() {
+  cloudToken = null; cloudEmail = null;
+  localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(EMAIL_KEY);
+  setCloudStatus('⚠️ Sitzung abgelaufen — bitte neu einloggen.', true);
+  renderCloudUI();
+}
+
+function initCloud() {
+  cloudToken = localStorage.getItem(TOKEN_KEY);
+  cloudEmail = localStorage.getItem(EMAIL_KEY);
+  renderCloudUI();
+  if (cloudToken) {
+    cloudPull({ silent: true });   // cloud is the cross-device source of truth on startup
+  }
 }
 
 // Snapshot of the ENTIRE local dataset (all profiles + their data)
@@ -1771,7 +1783,7 @@ function refreshAll() {
 }
 
 function cloudSyncSoon() {
-  if (!sbClient || !cloudUser || cloudApplying) return;
+  if (!cloudToken || cloudApplying) return;
   clearTimeout(cloudPushTimer);
   cloudPushTimer = setTimeout(cloudPush, 1500);
 }
@@ -1779,30 +1791,41 @@ function cloudSyncSoon() {
 function setCloudMarker(at) { if (at) localStorage.setItem('mt-cloud-synced-at', at); }
 
 async function cloudPush() {
-  if (!sbClient || !cloudUser) return;
+  if (!cloudToken) return;
   setCloudStatus('Synchronisiere…');
   const snap = cloudSnapshot();
-  const payload = { user_id: cloudUser.id, data: snap, updated_at: new Date().toISOString() };
-  const { error } = await sbClient.from('app_data').upsert(payload, { onConflict: 'user_id' });
-  if (error) { setCloudStatus('⚠️ Sync-Fehler: ' + error.message, true); return; }
-  setCloudMarker(snap.savedAt);
-  cloudLastSync = new Date();
-  renderCloudUI();
+  try {
+    const res = await api('/api/data', { method: 'PUT', auth: true, body: { data: snap } });
+    if (res.status === 401 || res.status === 403) { handleAuthExpired(); return; }
+    if (!res.ok) { setCloudStatus('⚠️ Sync-Fehler (' + res.status + ')', true); return; }
+    setCloudMarker(snap.savedAt);
+    cloudLastSync = new Date();
+    renderCloudUI();
+  } catch (e) {
+    setCloudStatus('⚠️ Keine Verbindung zum Server.', true);
+  }
 }
 
 async function cloudPull(opts = {}) {
-  if (!sbClient || !cloudUser) return null;
-  const { data, error } = await sbClient.from('app_data')
-    .select('data').eq('user_id', cloudUser.id).maybeSingle();
-  if (error) { if (!opts.silent) setCloudStatus('⚠️ Fehler: ' + error.message, true); return null; }
-  if (!data || !data.data) { await cloudPush(); return null; }   // nothing in cloud yet → upload local
-  // If the cloud is exactly what this device last synced, keep local (avoids clobbering offline edits)
-  const remoteAt = data.data.savedAt;
-  if (opts.silent && remoteAt && remoteAt === localStorage.getItem('mt-cloud-synced-at')) return data.data;
-  applyCloudSnapshot(data.data);
-  cloudLastSync = new Date();
-  renderCloudUI();
-  return data.data;
+  if (!cloudToken) return null;
+  try {
+    const res = await api('/api/data', { auth: true });
+    if (res.status === 401 || res.status === 403) { handleAuthExpired(); return null; }
+    if (!res.ok) { if (!opts.silent) setCloudStatus('⚠️ Fehler (' + res.status + ')', true); return null; }
+    const json = await res.json();
+    const remote = json && json.data ? json.data : null;
+    if (!remote) { await cloudPush(); return null; }   // nothing in cloud yet → upload local
+    // If the cloud is exactly what this device last synced, keep local (avoids clobbering offline edits)
+    const remoteAt = remote.savedAt;
+    if (opts.silent && remoteAt && remoteAt === localStorage.getItem('mt-cloud-synced-at')) return remote;
+    applyCloudSnapshot(remote);
+    cloudLastSync = new Date();
+    renderCloudUI();
+    return remote;
+  } catch (e) {
+    if (!opts.silent) setCloudStatus('⚠️ Keine Verbindung zum Server.', true);
+    return null;
+  }
 }
 
 function localHasData() {
@@ -1817,9 +1840,11 @@ function localHasData() {
 // After login: decide load vs upload vs ask
 async function cloudAfterLogin() {
   renderCloudUI();
-  const { data } = await sbClient.from('app_data')
-    .select('data').eq('user_id', cloudUser.id).maybeSingle();
-  const remote = data && data.data ? data.data : null;
+  let remote = null;
+  try {
+    const res = await api('/api/data', { auth: true });
+    if (res.ok) { const j = await res.json(); remote = j && j.data ? j.data : null; }
+  } catch (e) { /* offline → treat as no remote */ }
   const hasRemote = remote && (((remote.users||[]).length) || (remote.profiles && Object.keys(remote.profiles).length));
   if (!hasRemote)      { await cloudPush(); return; }                 // first device → upload local
   if (!localHasData()) { applyCloudSnapshot(remote); cloudLastSync = new Date(); renderCloudUI(); return; }
@@ -1849,17 +1874,31 @@ async function resolveCloudConflict(choice) {
 
 // Shared auth core. mode: 'up' (register) | 'in' (login). status: message callback.
 async function doCloudAuth(mode, email, pw, status) {
-  if (!sbClient) { status('⚠️ Cloud nicht verfügbar (offline?).', true); return false; }
   email = (email || '').trim();
   if (!email || !/.+@.+\..+/.test(email)) { status('⚠️ Bitte eine gültige E-Mail eingeben.', true); return false; }
   if (!pw || pw.length < 6) { status('⚠️ Passwort muss mind. 6 Zeichen haben.', true); return false; }
-  status(mode === 'up' ? 'Registriere…' : 'Melde an…');
-  const res = mode === 'up'
-    ? await sbClient.auth.signUp({ email, password: pw })
-    : await sbClient.auth.signInWithPassword({ email, password: pw });
-  if (res.error) { status('⚠️ ' + res.error.message, true); return false; }
-  if (mode === 'up' && !res.data.session) { status('📧 Bestätige deine E-Mail und logge dich dann ein.'); return false; }
-  cloudUser = res.data.user;
+  status(mode === 'up' ? 'Registriere…' : 'Melde an… (Server startet evtl. kurz, bis zu 1 Min)');
+  let res;
+  try {
+    res = await api(mode === 'up' ? '/api/auth/register' : '/api/auth/login',
+                    { method: 'POST', body: { email, password: pw } });
+  } catch (e) {
+    status('⚠️ Keine Verbindung zum Server. Evtl. startet er gerade — kurz warten und erneut versuchen.', true);
+    return false;
+  }
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = json.error
+      || (res.status === 401 ? 'E-Mail oder Passwort falsch'
+        : res.status === 409 ? 'E-Mail ist bereits registriert'
+        : 'Fehler ' + res.status);
+    status('⚠️ ' + msg, true);
+    return false;
+  }
+  cloudToken = json.token;
+  cloudEmail = json.email;
+  localStorage.setItem(TOKEN_KEY, cloudToken);
+  localStorage.setItem(EMAIL_KEY, cloudEmail);
   await cloudAfterLogin();
   return true;
 }
@@ -1894,10 +1933,9 @@ function loginCloudStatus(msg, isErr) {
   el.textContent = msg;
 }
 
-async function cloudSignOut() {
-  if (!sbClient) return;
-  await sbClient.auth.signOut();
-  cloudUser = null; cloudLastSync = null;
+function cloudSignOut() {
+  cloudToken = null; cloudEmail = null; cloudLastSync = null;
+  localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(EMAIL_KEY);
   renderCloudUI();
 }
 
@@ -1912,16 +1950,12 @@ function setCloudStatus(msg, isErr) {
 function renderCloudUI() {
   const box = document.getElementById('cloud-box');
   if (!box) return;
-  if (!sbClient) {
-    box.innerHTML = `<div style="font-size:13px;color:var(--muted);line-height:1.6">⚠️ Cloud-Bibliothek nicht geladen (offline?). Die lokale Speicherung läuft normal weiter.</div>`;
-    return;
-  }
-  if (cloudUser) {
+  if (cloudToken) {
     const last = cloudLastSync ? cloudLastSync.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) : '–';
     box.innerHTML = `
       <div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.35);border-radius:var(--r-sm);padding:12px 14px;font-size:13px">
         <div style="font-weight:700;color:var(--text)">✅ Synchronisiert</div>
-        <div style="color:var(--muted);margin-top:3px">${esc(cloudUser.email||'')}</div>
+        <div style="color:var(--muted);margin-top:3px">${esc(cloudEmail||'')}</div>
         <div style="color:var(--muted);margin-top:2px;font-size:12px">Zuletzt: ${last}</div>
       </div>
       <button class="btn-outline" onclick="cloudPush()" style="font-size:13px">🔄 Jetzt synchronisieren</button>
