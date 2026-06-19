@@ -52,6 +52,18 @@
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
+    <!-- E-Mail-Versand (SMTP) für die Bestätigungsmails -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-mail</artifactId>
+    </dependency>
+
+    <!-- OAuth2-Login (Google / GitHub) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-client</artifactId>
+    </dependency>
+
     <!-- PostgreSQL-Treiber (zur Laufzeit) — verbindet zu Supabase -->
     <dependency>
       <groupId>org.postgresql</groupId>

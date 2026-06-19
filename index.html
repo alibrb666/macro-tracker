@@ -904,7 +904,19 @@ body {
         <button class="btn-primary" onclick="loginCloudSignIn()" style="flex:1">Einloggen</button>
         <button class="btn-outline" onclick="loginCloudSignUp()" style="flex:1">Registrieren</button>
       </div>
+      <div class="divider">oder</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn-outline" onclick="cloudOAuth('google')" style="display:flex;align-items:center;justify-content:center;gap:10px">
+          <svg width="17" height="17" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.1 0-11-4.9-11-11s4.9-11 11-11c2.8 0 5.4 1.1 7.3 2.8l5.7-5.7C33.6 6.5 29 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.3-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c2.8 0 5.4 1.1 7.3 2.8l5.7-5.7C33.6 6.5 29 4.5 24 4.5 16.3 4.5 9.7 8.9 6.3 14.7z"/><path fill="#4CAF50" d="M24 43.5c5.2 0 9.7-2 13.2-5.2l-6.1-5.2C29.1 34.6 26.7 35.5 24 35.5c-5.3 0-9.7-2.6-11.3-7l-6.5 5C9.6 39.1 16.2 43.5 24 43.5z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.1 5.2C40.9 36 43.5 30.6 43.5 24c0-1.2-.1-2.3-.4-3.5z"/></svg>
+          Mit Google anmelden
+        </button>
+        <button class="btn-outline" onclick="cloudOAuth('github')" style="display:flex;align-items:center;justify-content:center;gap:10px">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.4-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
+          Mit GitHub anmelden
+        </button>
+      </div>
       <div id="login-cloud-status" style="display:none;font-size:13px;text-align:center;padding:10px 4px;line-height:1.5"></div>
+      <button class="login-cloud-link" onclick="loginCloudResend()" style="margin-top:4px">✉️ Bestätigungsmail erneut senden</button>
     </div>
 
     <!-- View: Neues Profil (Name + Emoji) -->
@@ -1509,6 +1521,9 @@ function loadUserDB(id) {
 // ===== INIT =====
 function init() {
   loadUsers();
+  // Rückleitung von OAuth (#token=…) bzw. E-Mail-Bestätigung (?confirmed=…) auswerten,
+  // BEVOR initCloud läuft (damit ein per OAuth erhaltenes Token sofort genutzt wird).
+  const redirect = consumeAuthRedirect();
   initCloud();
   document.querySelectorAll('.modal-overlay').forEach(o =>
     o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); })
@@ -1522,6 +1537,40 @@ function init() {
   } else {
     showLogin();
   }
+
+  // Ergebnis der Rückleitung anzeigen (nach showLogin, damit die Views existieren).
+  if (redirect.confirmed === true)  { loginShowCloud(); loginCloudStatus('✅ E-Mail bestätigt! Du kannst dich jetzt einloggen.'); }
+  if (redirect.confirmed === false) { loginShowCloud(); loginCloudStatus('⚠️ Bestätigungslink ungültig oder abgelaufen. Fordere einen neuen an.', true); }
+  if (redirect.oauthError)          { loginShowCloud(); loginCloudStatus('⚠️ Anmeldung mit dem Anbieter fehlgeschlagen. Bitte erneut versuchen.', true); }
+}
+
+// Liest OAuth-/Bestätigungs-Parameter aus der URL, speichert ggf. das Token und
+// putzt die URL wieder sauber. Liefert das Ergebnis für die Anzeige.
+function consumeAuthRedirect() {
+  // OAuth: Token kommt im URL-Fragment (#token=…&email=…) — nicht im Query, damit
+  // es nicht in Server-Logs/Referer landet.
+  if (location.hash && location.hash.indexOf('token=') !== -1) {
+    const h = new URLSearchParams(location.hash.slice(1));
+    const t = h.get('token'), em = h.get('email');
+    history.replaceState(null, '', location.pathname + location.search);
+    if (t) {
+      cloudToken = t; cloudEmail = em || '';
+      localStorage.setItem(TOKEN_KEY, t);
+      if (em) localStorage.setItem(EMAIL_KEY, em);
+      return { oauth: true };
+    }
+  }
+  if (location.hash && location.hash.indexOf('oauth_error') !== -1) {
+    history.replaceState(null, '', location.pathname + location.search);
+    return { oauthError: true };
+  }
+  const q = new URLSearchParams(location.search);
+  if (q.has('confirmed')) {
+    const ok = q.get('confirmed') === '1';
+    history.replaceState(null, '', location.pathname);
+    return { confirmed: ok };
+  }
+  return {};
 }
 
 function showLogin() {
@@ -1923,11 +1972,21 @@ async function doCloudAuth(mode, email, pw, status) {
   }
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
+    // E-Mail noch nicht bestätigt → klaren Hinweis + Möglichkeit zum erneuten Senden.
+    if (mode === 'in' && res.status === 403) {
+      status('⚠️ E-Mail noch nicht bestätigt. Bitte klicke den Link in deiner Mail (auch Spam-Ordner prüfen). Über „Bestätigungsmail erneut senden" bekommst du einen neuen Link.', true);
+      return false;
+    }
     const msg = json.error
       || (res.status === 401 ? 'E-Mail oder Passwort falsch'
         : res.status === 409 ? 'E-Mail ist bereits registriert'
         : 'Fehler ' + res.status);
     status('⚠️ ' + msg, true);
+    return false;
+  }
+  // Registrierung stellt KEIN Token aus, sondern verschickt eine Bestätigungsmail.
+  if (mode === 'up' || !json.token) {
+    status('✅ Fast geschafft! Wir haben dir eine Bestätigungsmail an ' + (json.email || email) + ' geschickt. Bestätige den Link und logge dich dann ein.');
     return false;
   }
   cloudToken = json.token;
@@ -1975,6 +2034,27 @@ function loginCloudStatus(msg, isErr) {
   el.textContent = msg;
 }
 
+// Social-Login: volle Seiten-Weiterleitung zum Backend, das den OAuth-Tanz übernimmt.
+function cloudOAuth(provider) {
+  location.href = API_BASE + '/oauth2/authorization/' + provider;
+}
+
+// Bestätigungsmail erneut anfordern. Neutrale Rückmeldung (verrät nicht, ob das Konto existiert).
+async function cloudResendWith(email, status) {
+  email = (email || '').trim();
+  if (!email || !/.+@.+\..+/.test(email)) { status('⚠️ Bitte zuerst deine E-Mail eingeben.', true); return; }
+  status('Sende Bestätigungsmail…');
+  try {
+    const res = await api('/api/auth/resend', { method: 'POST', body: { email } });
+    if (res.ok) status('✅ Falls ein Konto existiert, ist eine neue Bestätigungsmail unterwegs. Bitte Postfach (und Spam) prüfen.');
+    else status('⚠️ Konnte nicht senden (Fehler ' + res.status + '). Bitte später erneut versuchen.', true);
+  } catch (e) {
+    status('⚠️ Keine Verbindung zum Server.', true);
+  }
+}
+function cloudResend()      { cloudResendWith(document.getElementById('cloud-email').value, setCloudStatus); }
+function loginCloudResend() { cloudResendWith(document.getElementById('login-cloud-email').value, loginCloudStatus); }
+
 function cloudSignOut() {
   cloudToken = null; cloudEmail = null; cloudLastSync = null;
   localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(EMAIL_KEY);
@@ -2016,6 +2096,11 @@ function renderCloudUI() {
         <button class="btn-primary" onclick="cloudSignIn()" style="flex:1">Einloggen</button>
         <button class="btn-outline" onclick="cloudSignUp()" style="flex:1">Registrieren</button>
       </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-outline" onclick="cloudOAuth('google')" style="flex:1;font-size:13px">Google</button>
+        <button class="btn-outline" onclick="cloudOAuth('github')" style="flex:1;font-size:13px">GitHub</button>
+      </div>
+      <button class="btn-outline" onclick="cloudResend()" style="font-size:12.5px;border:none;color:var(--muted);padding:4px">✉️ Bestätigungsmail erneut senden</button>
       <div id="cloud-status" style="display:none;font-size:12.5px;text-align:center;padding:4px"></div>`;
   }
 }
