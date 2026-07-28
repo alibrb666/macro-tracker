@@ -141,6 +141,147 @@ function saveEditEntry() {
   save(); closeModal('modal-edit-entry'); renderToday();
 }
 
+// The current modal markup uses pills and an inline amount preview.  These
+// definitions intentionally replace the legacy select-based controls above.
+function openLogModal(meal = 'hauptspeise') {
+  logMealType = meal;
+  activeLogFood = null;
+  document.getElementById('log-search').value = '';
+  document.getElementById('log-amount').value = '';
+  document.getElementById('amount-section').style.display = 'none';
+  document.querySelectorAll('#meal-pills .meal-pill').forEach(button => {
+    const selected = button.dataset.meal === meal;
+    button.classList.toggle('active', selected);
+    button.setAttribute('aria-checked', String(selected));
+  });
+  openModal('modal-log');
+  renderSelectList('');
+  setTimeout(() => document.getElementById('log-search').focus(), 50);
+}
+
+function selectMealPill(button) {
+  logMealType = button.dataset.meal;
+  document.querySelectorAll('#meal-pills .meal-pill').forEach(item => {
+    const selected = item === button;
+    item.classList.toggle('active', selected);
+    item.setAttribute('aria-checked', String(selected));
+  });
+}
+
+function renderSelectList(query = '') {
+  const list = document.getElementById('select-list');
+  const foods = db.foods.filter(food => matchQuery(food.name, query));
+  if (!foods.length) {
+    list.innerHTML = `<div class="empty"><div class="icon">🔍</div><p>Keine Lebensmittel gefunden.</p></div>`;
+    return;
+  }
+  list.innerHTML = foods.map(food => `
+    <button type="button" class="lib-card" onclick="selectLogFood('${food.id}')">
+      ${food.photo ? `<div class="lib-card-thumb"><img src="${food.photo}" alt=""></div>` : '<div class="lib-card-thumb">🍽️</div>'}
+      <span class="lib-card-name">${esc(food.name)}</span>
+      <span class="lib-card-meta"><b style="color:var(--kcal)">${food.per100g.kcal} kcal</b><span>P ${food.per100g.protein} · C ${food.per100g.carbs} · F ${food.per100g.fat}</span></span>
+    </button>`).join('');
+}
+
+function selectLogFood(id) {
+  activeLogFood = db.foods.find(food => food.id === id);
+  if (!activeLogFood) return;
+  document.querySelectorAll('#select-list .lib-card').forEach(item => item.classList.toggle('selected', item.getAttribute('onclick').includes(`'${id}'`)));
+  const hasUnit = Boolean(activeLogFood.unit);
+  document.getElementById('log-unit-toggle').style.display = hasUnit ? 'flex' : 'none';
+  setLogUnit(hasUnit ? 'piece' : 'g');
+  document.getElementById('log-amount').value = hasUnit ? 1 : activeLogFood.servingSize;
+  document.getElementById('amount-section').style.display = 'block';
+  updatePreview();
+}
+
+function setLogUnit(unit) {
+  const isPiece = unit === 'piece' && activeLogFood && activeLogFood.unit;
+  document.getElementById('log-ut-piece').classList.toggle('active', Boolean(isPiece));
+  document.getElementById('log-ut-g').classList.toggle('active', !isPiece);
+  document.getElementById('log-amount-unit').textContent = isPiece ? activeLogFood.unit.label : 'g';
+  document.getElementById('log-unit-toggle').dataset.unit = isPiece ? 'piece' : 'g';
+  updatePreview();
+}
+
+function updatePreview() {
+  const preview = document.getElementById('amount-preview');
+  const amount = parseFloat(document.getElementById('log-amount').value);
+  if (!activeLogFood || !amount || amount <= 0) { preview.textContent = ''; return; }
+  const isPiece = document.getElementById('log-unit-toggle').dataset.unit === 'piece';
+  const macros = calcMacros(activeLogFood, isPiece ? amount * activeLogFood.unit.g : amount);
+  preview.textContent = `${macros.kcal} kcal · ${macros.protein} g Protein · ${macros.carbs} g KH · ${macros.fat} g Fett`;
+}
+
+function logFood() {
+  if (!activeLogFood) return;
+  const amount = parseFloat(document.getElementById('log-amount').value);
+  if (!amount || amount <= 0) return;
+  const isPiece = document.getElementById('log-unit-toggle').dataset.unit === 'piece';
+  const grams = isPiece ? amount * activeLogFood.unit.g : amount;
+  const macros = calcMacros(activeLogFood, grams);
+  if (!db.log[viewKey()]) db.log[viewKey()] = [];
+  db.log[viewKey()].push({
+    _id: uid(), foodId: activeLogFood.id, meal: logMealType, amount: grams,
+    units: isPiece ? amount : null, unitLabel: isPiece ? activeLogFood.unit.label : null,
+    unitPlural: isPiece ? (activeLogFood.unit.plural || activeLogFood.unit.label) : null, ...macros
+  });
+  save(); closeModal('modal-log'); renderToday(); showToast('Mahlzeit hinzugefügt');
+}
+
+function openEditEntry(idx) {
+  const entry = (db.log[viewKey()] || [])[idx];
+  if (!entry) return;
+  editLogIdx = idx;
+  const food = db.foods.find(item => item.id === entry.foodId);
+  document.getElementById('edit-food-name').textContent = food ? food.name : 'Eintrag';
+  document.getElementById('edit-food-per100').textContent = food ? `${food.per100g.kcal} kcal / 100 g` : '';
+  const hasUnit = Boolean(food && food.unit);
+  document.getElementById('edit-unit-toggle').style.display = hasUnit ? 'flex' : 'none';
+  document.getElementById('edit-unit-toggle').dataset.unit = entry.units && hasUnit ? 'piece' : 'g';
+  document.getElementById('edit-amount').value = entry.units || entry.amount;
+  setEditUnit(document.getElementById('edit-unit-toggle').dataset.unit);
+  openModal('modal-edit');
+}
+
+function setEditUnit(unit) {
+  const entry = (db.log[viewKey()] || [])[editLogIdx];
+  const food = entry && db.foods.find(item => item.id === entry.foodId);
+  const isPiece = unit === 'piece' && food && food.unit;
+  document.getElementById('edit-unit-toggle').dataset.unit = isPiece ? 'piece' : 'g';
+  document.getElementById('edit-ut-piece').classList.toggle('active', Boolean(isPiece));
+  document.getElementById('edit-ut-g').classList.toggle('active', !isPiece);
+  document.getElementById('edit-amount-unit').textContent = isPiece ? food.unit.label : 'g';
+  updateEditPreview();
+}
+
+function updateEditPreview() {
+  const entry = (db.log[viewKey()] || [])[editLogIdx];
+  const food = entry && db.foods.find(item => item.id === entry.foodId);
+  const amount = parseFloat(document.getElementById('edit-amount').value);
+  if (!food || !amount) return;
+  const piece = document.getElementById('edit-unit-toggle').dataset.unit === 'piece';
+  const macros = calcMacros(food, piece ? amount * food.unit.g : amount);
+  document.getElementById('edit-macro-preview').textContent = `${macros.kcal} kcal · P ${macros.protein} g · C ${macros.carbs} g · F ${macros.fat} g`;
+}
+
+function saveEditEntry() {
+  const entry = (db.log[viewKey()] || [])[editLogIdx];
+  const food = entry && db.foods.find(item => item.id === entry.foodId);
+  const amount = parseFloat(document.getElementById('edit-amount').value);
+  if (!entry || !food || !amount || amount <= 0) return;
+  const piece = document.getElementById('edit-unit-toggle').dataset.unit === 'piece';
+  const grams = piece ? amount * food.unit.g : amount;
+  Object.assign(entry, calcMacros(food, grams), { amount: grams, units: piece ? amount : null, unitLabel: piece ? food.unit.label : null, unitPlural: piece ? (food.unit.plural || food.unit.label) : null });
+  save(); closeModal('modal-edit'); renderToday();
+}
+
+function deleteEditEntry() {
+  const entries = db.log[viewKey()] || [];
+  if (editLogIdx < 0 || !entries[editLogIdx]) return;
+  entries.splice(editLogIdx, 1); save(); closeModal('modal-edit'); renderToday();
+}
+
 // ===== Drag & Drop Logic =====
 let dragSrcId = null;
 

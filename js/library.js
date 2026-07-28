@@ -2,7 +2,7 @@
 // Food Library, creation, editing and OCR processing
 
 function renderLibrary(query = '') {
-  const container = document.getElementById('lib-container');
+  const container = document.getElementById('lib-grid');
   if (!container) return;
   const items = db.foods.filter(f => matchQuery(f.name, query));
   if (!items.length) {
@@ -35,47 +35,30 @@ let editFoodId = null;
 function openFoodModal(id) {
   editFoodId = id;
   const f = id ? db.foods.find(x => x.id === id) : null;
-  const title = document.getElementById('food-modal-title');
+  const title = document.getElementById('modal-food-title');
   if (title) title.textContent = f ? 'Bearbeiten' : 'Neu erstellen';
   
-  document.getElementById('f-name').value    = f ? f.name : '';
-  document.getElementById('f-kcal').value    = f ? f.per100g.kcal : '';
-  document.getElementById('f-protein').value = f ? f.per100g.protein : '';
-  document.getElementById('f-carbs').value   = f ? f.per100g.carbs : '';
-  document.getElementById('f-fat').value     = f ? f.per100g.fat : '';
-  document.getElementById('f-serving').value = f ? f.servingSize : 100;
-  
-  // Custom unit fields
-  const hasUnit = !!(f && f.unit);
-  document.getElementById('f-unit-check').checked = hasUnit;
-  document.getElementById('f-unit-fields').style.display = hasUnit ? 'grid' : 'none';
-  document.getElementById('f-unit-label').value  = hasUnit ? f.unit.label : 'Stück';
-  document.getElementById('f-unit-plural').value = hasUnit ? (f.unit.plural || f.unit.label) : 'Stück';
-  document.getElementById('f-unit-g').value      = hasUnit ? f.unit.g : '';
-
-  const pb = document.getElementById('food-photo-box');
-  const d = document.getElementById('btn-del-food');
-  if (pb) {
-    pb.dataset.photo = f && f.photo ? f.photo : '';
-    pb.innerHTML = f && f.photo
-      ? `<img src="${f.photo}"><button class="photo-del" onclick="event.stopPropagation();document.getElementById('food-photo-box').dataset.photo='';document.getElementById('food-photo-box').innerHTML='<span>📸 Foto hinzufügen</span>'">✖</button>`
-      : `<span>📸 Foto hinzufügen</span>`;
-  }
-  if (d) d.style.display = f ? 'block' : 'none';
-
-  // OCR state resets
-  document.getElementById('ocr-progress').style.display = 'none';
-  document.getElementById('ocr-progress-bar').style.width = '0%';
+  document.getElementById('food-name').value    = f ? f.name : '';
+  document.getElementById('food-kcal').value    = f ? f.per100g.kcal : '';
+  document.getElementById('food-protein').value = f ? f.per100g.protein : '';
+  document.getElementById('food-carbs').value   = f ? f.per100g.carbs : '';
+  document.getElementById('food-fat').value     = f ? f.per100g.fat : '';
+  document.getElementById('food-serving').value = f ? f.servingSize : 100;
+  document.getElementById('food-unit-label').value = f && f.unit ? f.unit.label : '';
+  document.getElementById('food-unit-g').value = f && f.unit ? f.unit.g : '';
   document.getElementById('ocr-status').textContent = '';
+  const zone = document.getElementById('ocr-zone');
+  zone.dataset.photo = f && f.photo ? f.photo : '';
+  zone.style.backgroundImage = f && f.photo
+    ? `linear-gradient(rgba(15,16,18,.46), rgba(15,16,18,.46)), url(${f.photo})`
+    : '';
+  document.getElementById('btn-ocr').disabled = !f?.photo;
 
   openModal('modal-food');
 }
 
-document.getElementById('f-unit-check').addEventListener('change', e => {
-  document.getElementById('f-unit-fields').style.display = e.target.checked ? 'grid' : 'none';
-});
-
-async function addPhoto(fileInput) {
+function handlePhoto(event) {
+  const fileInput = event.target;
   const file = fileInput.files[0];
   if (!file) return;
   try {
@@ -83,23 +66,20 @@ async function addPhoto(fileInput) {
     reader.onload = async e => {
       const b64 = await resizeImage(e.target.result, 400); // 400px is enough for thumbnails
       if (!b64) return;
-      const pb = document.getElementById('food-photo-box');
-      pb.dataset.photo = b64;
-      pb.innerHTML = `<img src="${b64}"><button class="photo-del" onclick="event.stopPropagation();document.getElementById('food-photo-box').dataset.photo='';document.getElementById('food-photo-box').innerHTML='<span>📸 Foto hinzufügen</span>'">✖</button>`;
+      const zone = document.getElementById('ocr-zone');
+      zone.dataset.photo = b64;
+      zone.style.backgroundImage = `linear-gradient(rgba(15,16,18,.46), rgba(15,16,18,.46)), url(${b64})`;
+      document.getElementById('btn-ocr').disabled = false;
     };
     reader.readAsDataURL(file);
   } catch (err) {}
 }
 
-async function handleOcrFiles(input) {
+async function runOCR() {
+  const input = document.getElementById('file-input');
   if (!input.files || input.files.length === 0) return;
   const file = input.files[0];
-  const progressEl = document.getElementById('ocr-progress');
-  const barEl = document.getElementById('ocr-progress-bar');
   const statusEl = document.getElementById('ocr-status');
-
-  progressEl.style.display = 'block';
-  barEl.style.width = '0%';
   statusEl.textContent = 'Bild wird geladen...';
 
   try {
@@ -127,7 +107,6 @@ async function handleOcrFiles(input) {
         logger: m => {
           if (m.status === 'recognizing text') {
             const p = Math.round(m.progress * 100);
-            barEl.style.width = `${p}%`;
             statusEl.textContent = `Analysiere Text... ${p}%`;
           } else {
              statusEl.textContent = m.status;
@@ -144,20 +123,17 @@ async function handleOcrFiles(input) {
     const values = extractNutritionFromText(text);
     
     if (values) {
-      if (values.kcal)    document.getElementById('f-kcal').value    = values.kcal;
-      if (values.protein) document.getElementById('f-protein').value = values.protein;
-      if (values.carbs)   document.getElementById('f-carbs').value   = values.carbs;
-      if (values.fat)     document.getElementById('f-fat').value     = values.fat;
+      if (values.kcal)    document.getElementById('food-kcal').value    = values.kcal;
+      if (values.protein) document.getElementById('food-protein').value = values.protein;
+      if (values.carbs)   document.getElementById('food-carbs').value   = values.carbs;
+      if (values.fat)     document.getElementById('food-fat').value     = values.fat;
       statusEl.textContent = 'Nährwerte erfolgreich extrahiert!';
-      setTimeout(() => { progressEl.style.display = 'none'; }, 2000);
     } else {
        statusEl.textContent = 'Konnte keine Nährwerte im Text finden. Bitte manuell eingeben.';
-       setTimeout(() => { progressEl.style.display = 'none'; }, 4000);
     }
   } catch (error) {
     console.error("OCR Error:", error);
     statusEl.textContent = 'Fehler bei der Texterkennung.';
-    setTimeout(() => { progressEl.style.display = 'none'; }, 4000);
   } finally {
      input.value = ''; // Reset input
   }
@@ -211,25 +187,24 @@ function extractNutritionFromText(text) {
 }
 
 function saveFood() {
-  const n = document.getElementById('f-name').value.trim();
-  const k = parseFloat(document.getElementById('f-kcal').value);
-  const p = parseFloat(document.getElementById('f-protein').value);
-  const c = parseFloat(document.getElementById('f-carbs').value);
-  const f = parseFloat(document.getElementById('f-fat').value);
-  const s = parseFloat(document.getElementById('f-serving').value) || 100;
+  const n = document.getElementById('food-name').value.trim();
+  const k = parseFloat(document.getElementById('food-kcal').value);
+  const p = parseFloat(document.getElementById('food-protein').value);
+  const c = parseFloat(document.getElementById('food-carbs').value);
+  const f = parseFloat(document.getElementById('food-fat').value);
+  const s = parseFloat(document.getElementById('food-serving').value) || 100;
   if (!n || isNaN(k) || isNaN(p) || isNaN(c) || isNaN(f)) { alert('Bitte alle Felder (Name & Makros) ausfüllen.'); return; }
 
   let unit = null;
-  if (document.getElementById('f-unit-check').checked) {
-    const ul = document.getElementById('f-unit-label').value.trim();
-    const up = document.getElementById('f-unit-plural').value.trim();
-    const ug = parseFloat(document.getElementById('f-unit-g').value);
-    if (!ul || isNaN(ug) || ug <= 0) { alert('Bitte gültige Einheit (Bezeichnung und Gewicht) eingeben.'); return; }
-    unit = { label: ul, plural: up || ul, g: ug };
+  const ul = document.getElementById('food-unit-label').value.trim();
+  const ug = parseFloat(document.getElementById('food-unit-g').value);
+  if (ul || !isNaN(ug)) {
+    if (!ul || isNaN(ug) || ug <= 0) { alert('Bitte gültige Stück-Einheit und Gewicht eingeben.'); return; }
+    unit = { label: ul, plural: ul, g: ug };
   }
 
-  const pb = document.getElementById('food-photo-box');
-  const photo = pb && pb.dataset.photo ? pb.dataset.photo : null;
+  const zone = document.getElementById('ocr-zone');
+  const photo = zone && zone.dataset.photo ? zone.dataset.photo : null;
   const item = {
     id: editFoodId || uid(),
     name: n, photo,

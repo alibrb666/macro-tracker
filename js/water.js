@@ -25,6 +25,11 @@ function addWater(amountMl) {
   showToast(`💧 ${amountMl > 0 ? '+' : ''}${amountMl} ml Wasser getrackt!`, 'success');
 }
 
+function addWaterQuick(amountMl) {
+  addWater(amountMl);
+  renderToday();
+}
+
 function resetWater() {
   const key = viewKey();
   if (!db.water) db.water = {};
