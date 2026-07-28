@@ -139,6 +139,14 @@
     </svg>
     Ziele
   </button>
+  <button class="nav-btn" onclick="showTab('water',this)" aria-label="Wasser">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.5S5 10 5 15.5a7 7 0 0 0 14 0C19 10 12 2.5 12 2.5Z"/><path d="M8.5 16a3.5 3.5 0 0 0 3.5 3"/></svg>
+    Wasser
+  </button>
+  <button class="nav-btn" onclick="showTab('fasting',this)" aria-label="Intervallfasten">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    Fasten
+  </button>
 </nav>
 
 <!-- ===== MAIN CONTENT ===== -->
@@ -249,6 +257,18 @@
     <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:2px">☁️ Cloud-Sync</div>
     <div id="cloud-box"></div>
   </div>
+</div>
+
+<!-- ===== TAB: WASSER ===== -->
+<div id="tab-water" class="tab">
+  <div class="page-header"><div><h1 class="page-title">Hydration</h1><div class="page-subtitle">Dein Wasserhaushalt für heute</div></div></div>
+  <div id="water-page-module" class="standalone-module"></div>
+</div>
+
+<!-- ===== TAB: FASTEN ===== -->
+<div id="tab-fasting" class="tab">
+  <div class="page-header"><div><h1 class="page-title">Intervallfasten</h1><div class="page-subtitle">Fokus, Rhythmus und dein Essensfenster</div></div></div>
+  <div id="fasting-page-module" class="standalone-module"></div>
 </div>
 
 </div><!-- /.app-container -->

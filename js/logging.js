@@ -176,17 +176,23 @@ function renderSelectList(query = '') {
     return;
   }
   list.innerHTML = foods.map(food => `
-    <button type="button" class="lib-card" onclick="selectLogFood('${food.id}')">
-      ${food.photo ? `<div class="lib-card-thumb"><img src="${food.photo}" alt=""></div>` : '<div class="lib-card-thumb">🍽️</div>'}
-      <span class="lib-card-name">${esc(food.name)}</span>
-      <span class="lib-card-meta"><b style="color:var(--kcal)">${food.per100g.kcal} kcal</b><span>P ${food.per100g.protein} · C ${food.per100g.carbs} · F ${food.per100g.fat}</span></span>
+    <button type="button" class="log-food-card" data-food-id="${food.id}" onclick="selectLogFood('${food.id}')">
+      ${food.photo
+        ? `<span class="log-food-thumb"><img src="${food.photo}" alt=""></span>`
+        : `<span class="log-food-thumb log-food-fallback">${foodEmoji(food.name)}</span>`}
+      <span class="log-food-main">
+        <span class="log-food-name">${esc(food.name)}</span>
+        <span class="log-food-portion">${food.servingSize || 100} g Standardportion</span>
+      </span>
+      <span class="log-food-kcal">${food.per100g.kcal}<small>kcal</small></span>
+      <span class="log-food-macros"><i>P ${food.per100g.protein}</i><i>C ${food.per100g.carbs}</i><i>F ${food.per100g.fat}</i></span>
     </button>`).join('');
 }
 
 function selectLogFood(id) {
   activeLogFood = db.foods.find(food => food.id === id);
   if (!activeLogFood) return;
-  document.querySelectorAll('#select-list .lib-card').forEach(item => item.classList.toggle('selected', item.getAttribute('onclick').includes(`'${id}'`)));
+  document.querySelectorAll('#select-list .log-food-card').forEach(item => item.classList.toggle('selected', item.dataset.foodId === id));
   const hasUnit = Boolean(activeLogFood.unit);
   document.getElementById('log-unit-toggle').style.display = hasUnit ? 'flex' : 'none';
   setLogUnit(hasUnit ? 'piece' : 'g');

@@ -34,11 +34,13 @@ function showTab(tab, btn) {
   btn.classList.add('active');
 
   const fab = document.getElementById('main-fab');
-  if (fab) fab.style.display = (tab === 'bedarf' || tab === 'goals') ? 'none' : 'flex';
+  if (fab) fab.style.display = (tab === 'bedarf' || tab === 'goals' || tab === 'water' || tab === 'fasting') ? 'none' : 'flex';
 
   if (tab === 'today')   { viewDate = null; renderToday(); }
   if (tab === 'library') renderLibrary();
   if (tab === 'bedarf')  renderBedarf();
+  if (tab === 'water')   renderWaterPage();
+  if (tab === 'fasting') renderFastingPage();
 }
 
 function handleFab() {

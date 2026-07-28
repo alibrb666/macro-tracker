@@ -13,6 +13,7 @@ function setFastingPlan(planKey) {
   db.fastingPlan = planKey;
   save();
   renderFastingWidget();
+  renderFastingPage();
   showToast(`⏱️ Fastenplan auf ${FASTING_PLANS[planKey].name} gesetzt!`, 'success');
 }
 
@@ -21,6 +22,7 @@ function startFast() {
   save();
   startFastingTimer();
   renderFastingWidget();
+  renderFastingPage();
   showToast('⏱️ Fasten-Timer gestartet! Viel Erfolg!', 'success');
 }
 
@@ -42,6 +44,7 @@ function stopFast() {
   save();
   stopFastingTimer();
   renderFastingWidget();
+  renderFastingPage();
   showToast(`🎉 Fasten beendet! ${elapsedHours} Stunden gefastet!`, 'success');
 }
 
@@ -65,10 +68,7 @@ function getFastingPhase(elapsedHours) {
 }
 
 function updateFastingClock() {
-  const clockEl = document.getElementById('fasting-clock-time');
-  const phaseEl = document.getElementById('fasting-clock-phase');
-  const barEl = document.getElementById('fasting-clock-progress');
-  if (!clockEl || !db.fastingStart) return;
+  if (!db.fastingStart) return;
 
   const planKey = getFastingPlan();
   const plan = FASTING_PLANS[planKey] || FASTING_PLANS['16:8'];
@@ -83,19 +83,17 @@ function updateFastingClock() {
   const mins = Math.floor((elapsedMs % (1000 * 60 * 60)) / (1000 * 60));
   const secs = Math.floor((elapsedMs % (1000 * 60)) / 1000);
 
-  clockEl.textContent = `${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+  const time = `${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
 
   const pct = Math.min(100, Math.round((elapsedMs / targetMs) * 100));
-  if (barEl) barEl.style.width = `${pct}%`;
-
   const phase = getFastingPhase(elapsedHours);
-  if (phaseEl) {
-    phaseEl.innerHTML = `<span>${phase.icon}</span> <span><b>${phase.name}</b> · ${phase.desc}</span>`;
-  }
+  document.querySelectorAll('[data-fasting-clock]').forEach(el => { el.textContent = time; });
+  document.querySelectorAll('[data-fasting-progress]').forEach(el => { el.style.width = `${pct}%`; });
+  document.querySelectorAll('[data-fasting-phase]').forEach(el => { el.innerHTML = `<span>${phase.icon}</span> <span><b>${phase.name}</b> · ${phase.desc}</span>`; });
 }
 
-function renderFastingWidget() {
-  const widget = document.getElementById('fasting-widget');
+function renderFastingWidget(targetId = 'fasting-widget') {
+  const widget = document.getElementById(targetId);
   if (!widget) return;
 
   const planKey = getFastingPlan();
@@ -120,11 +118,11 @@ function renderFastingWidget() {
     ${isFasting ? `
       <!-- Live Fasting Timer -->
       <div class="fasting-clock-box">
-        <div class="fasting-clock-time" id="fasting-clock-time">00:00:00</div>
+        <div class="fasting-clock-time" data-fasting-clock>00:00:00</div>
         <div class="fasting-progress-wrap">
-          <div class="fasting-progress-bar" id="fasting-clock-progress" style="width: 0%"></div>
+          <div class="fasting-progress-bar" data-fasting-progress style="width: 0%"></div>
         </div>
-        <div class="fasting-phase-tag" id="fasting-clock-phase">
+        <div class="fasting-phase-tag" data-fasting-phase>
           <span>🔄</span> Berechne Fastenphase…
         </div>
         <button class="btn-primary danger" onclick="stopFast()" style="margin-top:14px;width:100%">⏹️ Fasten beenden</button>
@@ -144,6 +142,8 @@ function renderFastingWidget() {
     startFastingTimer();
   }
 }
+
+function renderFastingPage() { renderFastingWidget('fasting-page-module'); }
 
 function openFastingModal() {
   openModal('modal-fasting-plan');

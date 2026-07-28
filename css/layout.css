@@ -70,6 +70,12 @@
   transform: translateY(-1px);
 }
 
+@media (max-width: 767px) {
+  .nav { max-width: 620px; gap: 2px; padding: 7px 6px; }
+  .nav-btn { min-width: 0; padding: 9px 2px 7px; font-size: 8.5px; }
+  .nav-btn svg { width: 19px; height: 19px; }
+}
+
 /* ── TABS & PAGE HEADERS ─────────────────────────────────────── */
 .tab { display: none; padding: 0 16px 20px; }
 .tab.active { display: block; animation: tabFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1); }

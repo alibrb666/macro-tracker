@@ -22,6 +22,7 @@ function addWater(amountMl) {
   db.water[key] = updated;
   save();
   renderToday();
+  renderWaterPage();
   showToast(`💧 ${amountMl > 0 ? '+' : ''}${amountMl} ml Wasser getrackt!`, 'success');
 }
 
@@ -35,6 +36,7 @@ function resetWater() {
   db.water[key] = 0;
   save();
   renderToday();
+  renderWaterPage();
   showToast('💧 Wasser-Tracker zurückgesetzt', 'warning');
 }
 
@@ -44,11 +46,12 @@ function setWaterTarget(ml) {
   db.waterGoal = ml;
   save();
   renderToday();
+  renderWaterPage();
   showToast(`💧 Wasserziel auf ${ml} ml gesetzt!`, 'success');
 }
 
-function renderWaterCard() {
-  const card = document.getElementById('water-card');
+function renderWaterModule(targetId) {
+  const card = document.getElementById(targetId);
   if (!card) return;
 
   const target = getWaterTarget();
@@ -100,6 +103,9 @@ function renderWaterCard() {
     </section>
   `;
 }
+
+function renderWaterCard() { renderWaterModule('water-card'); }
+function renderWaterPage() { renderWaterModule('water-page-module'); }
 
 function openWaterGoalModal() {
   const current = getWaterTarget();
