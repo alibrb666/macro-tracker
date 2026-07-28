@@ -20,6 +20,29 @@ const CONFIG = {
   },
 };
 
+const THEMES = {
+  violet:  { name: '💜 Royal Violett', accent: '#8b5cf6', accent2: '#6366f1', accent3: '#3b82f6', glow: 'rgba(139,92,246,0.45)' },
+  cyan:    { name: '⚡ Electric Cyan',  accent: '#06b6d4', accent2: '#3b82f6', accent3: '#0284c7', glow: 'rgba(6,182,212,0.45)' },
+  emerald: { name: '🌿 Smaragd Grün', accent: '#10b981', accent2: '#059669', accent3: '#047857', glow: 'rgba(16,185,129,0.45)' },
+  rose:    { name: '🌹 Sunset Rose',   accent: '#f43f5e', accent2: '#e11d48', accent3: '#be123c', glow: 'rgba(244,63,94,0.45)' },
+  amber:   { name: '🥇 Premium Gold',  accent: '#f59e0b', accent2: '#d97706', accent3: '#b45309', glow: 'rgba(245,158,11,0.45)' },
+};
+
+const FASTING_PLANS = {
+  '16:8':  { name: '16:8 (Standard)', fastHours: 16, eatHours: 8,  desc: 'Beliebtester Plan für Fettabbau & Wohlbefinden' },
+  '18:6':  { name: '18:6 (Intensiv)', fastHours: 18, eatHours: 6,  desc: 'Erweiterte Autophagie & schnellere Fettverbrennung' },
+  '20:4':  { name: '20:4 (Warrior)', fastHours: 20, eatHours: 4,  desc: 'Krieger-Diät mit kurzem Essensfenster' },
+  '14:10': { name: '14:10 (Sanft)',   fastHours: 14, eatHours: 10, desc: 'Perfekt für Einsteiger & sanften Start' },
+};
+
+const MACRO_STRATEGIES = {
+  balanced:     { name: '⚖️ Ausgewogen',     proteinPct: 30, carbsPct: 40, fatPct: 30 },
+  high_protein: { name: '💪 Muskelaufbau',    proteinPct: 40, carbsPct: 35, fatPct: 25 },
+  low_carb:     { name: '🥑 Low Carb',        proteinPct: 35, carbsPct: 20, fatPct: 45 },
+  keto:         { name: '🥩 Ketogen',         proteinPct: 30, carbsPct: 5,  fatPct: 65 },
+  endurance:    { name: '🏃 Ausdauer / Carb', proteinPct: 25, carbsPct: 55, fatPct: 20 },
+};
+
 const MEALS = [
   { id: 'fruehstueck',  label: 'Frühstück',   emoji: '🌅' },
   { id: 'hauptspeise',  label: 'Hauptspeise',  emoji: '🍽️' },

@@ -172,6 +172,10 @@ function renderToday() {
         </div>`;
     }).join('');
   }
+
+  // Render Pro Widgets (Water Tracker & Fasting Clock)
+  if (typeof renderWaterCard === 'function') renderWaterCard();
+  if (typeof renderFastingWidget === 'function') renderFastingWidget();
 }
 
 function deleteEntry(i) {

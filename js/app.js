@@ -88,4 +88,5 @@ function addPreset(name) {
 }
 
 // ===== START =====
+if (typeof applyTheme === 'function') applyTheme();
 init();

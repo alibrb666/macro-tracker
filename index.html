@@ -144,17 +144,19 @@
 <!-- ===== MAIN CONTENT ===== -->
 <div class="app-container">
 
-<!-- ===== TAB: HEUTE ===== -->
 <div id="tab-today" class="tab active">
   <div class="page-header">
     <div>
       <h1 class="page-title">Heute</h1>
       <div class="page-subtitle" id="today-date"></div>
     </div>
-    <button class="profile-chip" id="profile-chip" onclick="logout()" title="Profil wechseln" aria-label="Profil wechseln">
-      <span class="profile-chip-emoji" id="profile-chip-emoji">🙂</span>
-      <span class="profile-chip-name" id="profile-chip-name"></span>
-    </button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button class="btn-outline" onclick="openSettingsModal()" style="padding:6px 12px;font-size:12.5px;border-radius:20px;display:flex;align-items:center;gap:6px" aria-label="Einstellungen">⚙️ Einstellungen</button>
+      <button class="profile-chip" id="profile-chip" onclick="logout()" title="Profil wechseln" aria-label="Profil wechseln">
+        <span class="profile-chip-emoji" id="profile-chip-emoji">🙂</span>
+        <span class="profile-chip-name" id="profile-chip-name"></span>
+      </button>
+    </div>
   </div>
   <div id="day-nav" class="day-nav"></div>
   <div id="today-hero"></div>
@@ -167,6 +169,10 @@
   </button>
   <div id="meals-container"></div>
   <div id="suggestions-container"></div>
+
+  <!-- Pro Widgets: Water Tracker & Fasting Clock -->
+  <div id="water-card" class="water-card-box"></div>
+  <div id="fasting-widget" class="fasting-card-box"></div>
 </div>
 
 <!-- ===== TAB: BIBLIOTHEK ===== -->
@@ -632,6 +638,46 @@
   </div>
 </div>
 
+<!-- ===== MODAL: Pro-Einstellungen ===== -->
+<div class="modal-overlay" id="modal-settings" role="dialog" aria-modal="true" aria-label="Einstellungen">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⚙️ Pro-Einstellungen</span>
+      <button class="modal-close" onclick="closeModal('modal-settings')" aria-label="Schließen">✕</button>
+    </div>
+    <div id="settings-content" style="display:flex;flex-direction:column;gap:12px;max-height:65vh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Fasten-Plan auswählen ===== -->
+<div class="modal-overlay" id="modal-fasting-plan" role="dialog" aria-modal="true" aria-label="Fastenplan wählen">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⏱️ Fastenplan wählen</span>
+      <button class="modal-close" onclick="closeModal('modal-fasting-plan')" aria-label="Schließen">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">Wähle ein Fastenintervall für deinen Tagesablauf:</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="choice-btn" onclick="setFastingPlan('16:8');closeModal('modal-fasting-plan')">
+        <div style="font-weight:800;font-size:15px;color:var(--text)">16:8 (Standard)</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Beliebtester Plan für Fettabbau &amp; Wohlbefinden</div>
+      </button>
+      <button class="choice-btn" onclick="setFastingPlan('18:6');closeModal('modal-fasting-plan')">
+        <div style="font-weight:800;font-size:15px;color:var(--text)">18:6 (Intensiv)</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Erweiterte Autophagie &amp; schnellere Fettverbrennung</div>
+      </button>
+      <button class="choice-btn" onclick="setFastingPlan('20:4');closeModal('modal-fasting-plan')">
+        <div style="font-weight:800;font-size:15px;color:var(--text)">20:4 (Warrior)</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Krieger-Diät mit kurzem Essensfenster</div>
+      </button>
+      <button class="choice-btn" onclick="setFastingPlan('14:10');closeModal('modal-fasting-plan')">
+        <div style="font-weight:800;font-size:15px;color:var(--text)">14:10 (Sanft)</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Perfekt für Einsteiger &amp; sanften Start</div>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== SCRIPTS (modular, in dependency order) ===== -->
 <script src="js/constants.js"></script>
 <script src="js/store.js"></script>
@@ -639,6 +685,9 @@
 <script src="js/auth.js"></script>
 <script src="js/calc.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/water.js"></script>
+<script src="js/fasting.js"></script>
+<script src="js/settings.js"></script>
 <script src="js/today.js"></script>
 <script src="js/library.js"></script>
 <script src="js/logging.js"></script>
