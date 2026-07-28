@@ -29,12 +29,19 @@ function renderToday() {
   allEntries.forEach(e => { if (!e.meal) e.meal = 'hauptspeise'; });
 
   const tot = allEntries.reduce(
-    (a, e) => ({ kcal:a.kcal+e.kcal, protein:a.protein+e.protein, carbs:a.carbs+e.carbs, fat:a.fat+e.fat }),
-    { kcal:0, protein:0, carbs:0, fat:0 }
+    (a, e) => ({
+      kcal: a.kcal + (e.kcal || 0),
+      protein: a.protein + (e.protein || 0),
+      carbs: a.carbs + (e.carbs || 0),
+      fat: a.fat + (e.fat || 0),
+      fiber: a.fiber + (e.fiber || 0),
+      sugar: a.sugar + (e.sugar || 0),
+    }),
+    { kcal:0, protein:0, carbs:0, fat:0, fiber:0, sugar:0 }
   );
   const g = goalsForDate(viewKey());
 
-  // ── Hero card ──────────────────────────────────────
+  // ── VIP Hero card ──────────────────────────────────────
   const eaten    = Math.round(tot.kcal);
   const remaining = g.kcal - eaten;
   const pctKcal  = Math.min(100, Math.round(eaten / (g.kcal || 1) * 100));
@@ -43,51 +50,54 @@ function renderToday() {
   const dash = C - pctKcal / 100 * C;
   const isOver  = remaining < 0;
   const isWarn  = pctKcal > 85;
-  const ringA   = isOver ? '#f43f5e' : isWarn ? '#fbbf24' : '#8b5cf6';
-  const ringB   = isOver ? '#fb7185' : isWarn ? '#f59e0b' : '#38bdf8';
+  const ringA   = isOver ? '#f43f5e' : isWarn ? '#f59e0b' : 'var(--accent)';
+  const ringB   = isOver ? '#fb7185' : isWarn ? '#fbbf24' : 'var(--accent3)';
   const h = new Date().getHours();
   const greeting = h < 11 ? '☀️ Guten Morgen!' : h < 18 ? '👋 Guten Tag!' : '🌙 Guten Abend!';
 
   const barRow = (label, val, goal, color, hexColor) => {
     const p = Math.min(100, goal > 0 ? Math.round(val / goal * 100) : 0);
-    const glow = hexColor ? `box-shadow:0 0 10px ${hexColor}55` : '';
+    const glow = hexColor ? `box-shadow:0 0 12px ${hexColor}66` : '';
     return `<div class="hm-row">
-      <span class="hm-label" style="color:${color}">${label}</span>
+      <span class="hm-label" style="color:${color};font-weight:800">${label}</span>
       <div class="hm-bar"><div class="hm-fill" style="width:${p}%;background:${color};${glow}"></div></div>
-      <span class="hm-val">${val}g <span style="opacity:.5">/</span> ${goal}g</span>
+      <span class="hm-val">${val}g <span style="opacity:.4">/</span> ${goal}g</span>
     </div>`;
   };
 
   const heroEl = document.getElementById('today-hero');
   if (heroEl) {
     heroEl.innerHTML = `
-      <div class="today-hero">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;font-weight:600;letter-spacing:.3px">${greeting}</div>
+      <div class="today-hero" style="box-shadow:var(--shadow-vip);border-color:var(--border-light)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="font-size:12.5px;color:var(--muted);font-weight:700;letter-spacing:.4px;text-transform:uppercase">${greeting}</div>
+          <div style="font-size:11px;font-weight:800;color:var(--accent);background:rgba(139,92,246,0.12);padding:4px 10px;border-radius:12px;border:1px solid rgba(139,92,246,0.3)">PRO VIP</div>
+        </div>
         <div class="hero-top">
           <div class="hero-ring">
-            <svg width="104" height="104" viewBox="0 0 104 104">
+            <svg width="108" height="108" viewBox="0 0 104 104">
               <defs>
                 <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stop-color="${ringA}"/>
                   <stop offset="100%" stop-color="${ringB}"/>
                 </linearGradient>
               </defs>
-              <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="9"/>
+              <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="9"/>
               <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="url(#rg)" stroke-width="9"
                 stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${dash.toFixed(1)}"
                 stroke-linecap="round" transform="rotate(-90 ${CX} ${CY})"
-                style="transition:stroke-dashoffset .75s cubic-bezier(.4,0,.2,1)"/>
-              <text x="${CX}" y="${CY-5}" text-anchor="middle" font-size="10" fill="rgba(168,162,218,0.75)" font-family="inherit" font-weight="700" letter-spacing="1">GEGESSEN</text>
-              <text x="${CX}" y="${CY+15}" text-anchor="middle" font-size="20" font-weight="900" fill="#f0efff" font-family="inherit">${pctKcal}%</text>
+                style="transition:stroke-dashoffset .8s cubic-bezier(0.16,1,0.3,1);filter:drop-shadow(0 0 6px ${ringA}66)"/>
+              <text x="${CX}" y="${CY-6}" text-anchor="middle" font-size="9.5" fill="var(--muted)" font-family="inherit" font-weight="800" letter-spacing="1">GEGESSEN</text>
+              <text x="${CX}" y="${CY+15}" text-anchor="middle" font-size="21" font-weight="900" fill="#ffffff" font-family="inherit">${pctKcal}%</text>
             </svg>
           </div>
           <div class="hero-right">
-            <div class="hero-remaining-label">Verbleibend</div>
-            <div class="hero-remaining-val ${isOver ? 'over' : ''}" style="${!isOver ? 'background:linear-gradient(135deg,#f0efff,rgba(196,181,253,0.8));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text' : ''}">${Math.abs(remaining)}<span style="font-size:15px;font-weight:500;color:var(--muted);-webkit-text-fill-color:var(--muted)"> kcal</span></div>
-            ${isOver ? `<div style="font-size:12px;color:var(--danger);font-weight:700;margin-bottom:6px">⚠️ Über Ziel</div>` : ''}
+            <div class="hero-remaining-label" style="letter-spacing:.5px;font-weight:700">Verbleibend</div>
+            <div class="hero-remaining-val ${isOver ? 'over' : ''}" style="${!isOver ? 'background:linear-gradient(180deg,#ffffff,#cbd5e1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text' : ''}">${Math.abs(remaining)}<span style="font-size:15px;font-weight:600;color:var(--muted);-webkit-text-fill-color:var(--muted)"> kcal</span></div>
+            ${isOver ? `<div style="font-size:12px;color:var(--danger);font-weight:800;margin-bottom:6px">⚠️ Über Kalorienziel</div>` : ''}
             <div class="hero-meta">
-              <span>Gegessen <b>${eaten} kcal</b></span>
-              <span>Ziel <b>${g.kcal} kcal</b></span>
+              <span>Gegessen <b style="color:var(--text)">${eaten} kcal</b></span>
+              <span>Ziel <b style="color:var(--text)">${g.kcal} kcal</b></span>
             </div>
           </div>
         </div>

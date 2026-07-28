@@ -1,33 +1,53 @@
-/* === VARIABLES === */
-:root {
-  --bg: #070710;
-  --surface: rgba(255,255,255,0.04);
-  --surface-solid: #10101e;
-  --surface2: rgba(255,255,255,0.07);
-  --surface2-solid: #16162a;
-  --border: rgba(255,255,255,0.08);
-  --border-mid: rgba(255,255,255,0.13);
-  --text: #f0efff;
-  --muted: #7a7aa8;
-  --muted2: #9494b8;
+/* === VIP LUXURY VARIABLES === */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 
-  --kcal: #ff5757;
+:root {
+  --bg: #06070a;
+  --bg-gradient: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(139,92,246,0.18) 0%, rgba(6,7,10,1) 80%),
+                 radial-gradient(ellipse 60% 40% at 90% 100%, rgba(56,189,248,0.1) 0%, transparent 80%);
+  
+  --card: rgba(18, 20, 29, 0.65);
+  --card-hover: rgba(26, 29, 43, 0.85);
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-solid: #0d0f17;
+  --surface2: rgba(255, 255, 255, 0.07);
+  --surface2-solid: #151824;
+  
+  --border: rgba(255, 255, 255, 0.09);
+  --border-light: rgba(255, 255, 255, 0.15);
+  --border-highlight: rgba(255, 255, 255, 0.22);
+
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --muted2: #64748b;
+
+  --kcal: #ff4d4d;
+  --kcal-glow: rgba(255, 77, 77, 0.35);
   --protein: #38bdf8;
+  --protein-glow: rgba(56, 189, 248, 0.35);
   --carbs: #34d399;
+  --carbs-glow: rgba(52, 211, 153, 0.35);
   --fat: #fbbf24;
+  --fat-glow: rgba(251, 191, 36, 0.35);
 
   --accent: #8b5cf6;
   --accent2: #6366f1;
   --accent3: #3b82f6;
-  --accent-glow: rgba(139,92,246,0.45);
-  --accent-grad: linear-gradient(135deg,#8b5cf6 0%,#6366f1 55%,#3b82f6 100%);
+  --accent-glow: rgba(139,92,246,0.5);
+  --accent-grad: linear-gradient(135deg, #8b5cf6 0%, #6366f1 50%, #3b82f6 100%);
+  --gold-grad: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
 
   --danger: #f43f5e;
   --green: #10b981;
 
+  --r-lg: 24px;
   --r: 18px;
   --r-sm: 12px;
   --r-xs: 8px;
+
+  --shadow-vip: 0 20px 50px -10px rgba(0, 0, 0, 0.7), 0 0 25px rgba(139, 92, 246, 0.1);
+  --shadow-card: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
+  --shadow-button: 0 4px 15px rgba(139, 92, 246, 0.35);
 
   /* Desktop breakpoints */
   --bp-tablet: 768px;
@@ -36,5 +56,6 @@
   
   /* Desktop layout */
   --sidebar-width: 280px;
-  --content-max: 640px;
+  --content-max: 680px;
 }
+
