@@ -11,18 +11,20 @@ let newProfile   = null;   // { name, emoji } während Erstellung
 
 function init() {
   loadUsers();
-  // supabase-js verarbeitet eine Session aus der URL (E-Mail-Bestätigung / OAuth)
-  // selbst und meldet sie über onAuthStateChange (siehe initCloud → handleSignedIn).
   initCloud();
   document.querySelectorAll('.modal-overlay').forEach(o =>
     o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); })
   );
   document.getElementById('lib-search').addEventListener('input', e => renderLibrary(e.target.value));
 
-  // Auto-Login wenn (lokale) Sitzung aktiv
   const sessionId = sessionStorage.getItem('mt-current');
   if (sessionId && users.some(u => u.id === sessionId)) {
     enterApp(users.find(u => u.id === sessionId));
+  } else if (!users.length) {
+    const defaultUser = { id: 'user-ali', name: 'Ali', emoji: '🥗' };
+    users = [defaultUser];
+    saveUsers();
+    enterApp(defaultUser);
   } else {
     showLogin();
   }

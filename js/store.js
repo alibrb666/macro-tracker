@@ -33,20 +33,25 @@ function dataKey(id) {
 function loadUserDB(id) {
   try {
     const raw = localStorage.getItem(dataKey(id));
+    const empty = EMPTY_DB();
     if (raw) {
       const parsed = JSON.parse(raw);
-      const empty = EMPTY_DB();
+      const hasData = (Array.isArray(parsed.foods) && parsed.foods.length > 0) || (parsed.log && Object.keys(parsed.log).length > 0);
       db = {
-        foods: Array.isArray(parsed.foods) ? parsed.foods : empty.foods,
-        log: (parsed.log && typeof parsed.log === 'object') ? parsed.log : empty.log,
+        foods: (Array.isArray(parsed.foods) && parsed.foods.length > 0) ? parsed.foods : empty.foods,
+        log: (parsed.log && Object.keys(parsed.log).length > 0) ? parsed.log : empty.log,
         goals: { ...empty.goals, ...(parsed.goals || {}) },
         profile: parsed.profile || empty.profile,
-        weights: Array.isArray(parsed.weights) ? parsed.weights : empty.weights,
+        weights: (Array.isArray(parsed.weights) && parsed.weights.length > 0) ? parsed.weights : empty.weights,
       };
+      if (!hasData) {
+        save();
+      }
     } else {
-      db = EMPTY_DB();
+      db = empty;
+      save();
     }
-  } catch(e) { db = EMPTY_DB(); }
+  } catch(e) { db = EMPTY_DB(); save(); }
 }
 
 function save() {
