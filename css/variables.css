@@ -1,55 +1,55 @@
-/* === VIP LUXURY VARIABLES === */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+/* === PREMIUM DESIGN TOKENS === */
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --bg: #05070d;
-  --bg-gradient: radial-gradient(ellipse 90% 60% at 50% -10%, rgba(123, 44, 191, 0.25) 0%, rgba(5, 7, 13, 1) 85%),
-                 radial-gradient(ellipse 70% 50% at 95% 95%, rgba(0, 242, 254, 0.15) 0%, transparent 80%),
-                 radial-gradient(ellipse 60% 40% at 5% 50%, rgba(255, 0, 127, 0.12) 0%, transparent 75%);
+  --bg: #0b0d10;
+  --bg-gradient: radial-gradient(ellipse 85% 60% at 12% -18%, rgba(217, 99, 68, .20), transparent 64%),
+                 radial-gradient(ellipse 68% 46% at 100% 42%, rgba(99, 153, 131, .15), transparent 66%),
+                 linear-gradient(135deg, #101216 0%, #0b0d10 48%, #101318 100%);
   
-  --card: rgba(15, 18, 28, 0.75);
-  --card-hover: rgba(24, 28, 44, 0.9);
-  --surface: rgba(255, 255, 255, 0.05);
-  --surface-solid: #0a0d16;
-  --surface2: rgba(255, 255, 255, 0.08);
-  --surface2-solid: #121624;
+  --card: rgba(25, 27, 30, 0.74);
+  --card-hover: rgba(38, 41, 45, 0.91);
+  --surface: rgba(255, 255, 255, 0.055);
+  --surface-solid: #17191d;
+  --surface2: rgba(255, 255, 255, 0.09);
+  --surface2-solid: #202329;
   
-  --border: rgba(255, 255, 255, 0.1);
-  --border-light: rgba(255, 255, 255, 0.18);
-  --border-highlight: rgba(0, 242, 254, 0.4);
+  --border: rgba(255, 255, 255, 0.095);
+  --border-light: rgba(255, 255, 255, 0.16);
+  --border-highlight: rgba(236, 139, 103, 0.58);
 
-  --text: #ffffff;
-  --muted: #a0aec0;
-  --muted2: #64748b;
+  --text: #f8f5ef;
+  --muted: #abb0ae;
+  --muted2: #747a7b;
 
-  --kcal: #ff007f;
-  --kcal-glow: rgba(255, 0, 127, 0.45);
-  --protein: #00f2fe;
-  --protein-glow: rgba(0, 242, 254, 0.45);
-  --carbs: #00f5d4;
-  --carbs-glow: rgba(0, 245, 212, 0.45);
-  --fat: #ffaa00;
-  --fat-glow: rgba(255, 170, 0, 0.45);
+  --kcal: #ed7650;
+  --kcal-glow: rgba(237, 118, 80, .38);
+  --protein: #8fc6b2;
+  --protein-glow: rgba(143, 198, 178, .32);
+  --carbs: #dfbc70;
+  --carbs-glow: rgba(223, 188, 112, .32);
+  --fat: #bda1d4;
+  --fat-glow: rgba(189, 161, 212, .32);
 
-  --accent: #9d4edd;
-  --accent2: #7928ca;
-  --accent3: #0070f3;
-  --accent-glow: rgba(157, 78, 221, 0.55);
-  --accent-grad: linear-gradient(135deg, #7928ca 0%, #ff0080 100%);
-  --cyan-grad: linear-gradient(135deg, #0070f3 0%, #00dfd8 100%);
-  --gold-grad: linear-gradient(135deg, #ffaa00 0%, #ff5500 100%);
+  --accent: #e67853;
+  --accent2: #bd4f39;
+  --accent3: #85b9a6;
+  --accent-glow: rgba(230, 120, 83, .42);
+  --accent-grad: linear-gradient(135deg, #f0956d 0%, #c9513e 100%);
+  --cyan-grad: linear-gradient(135deg, #c0e0d1 0%, #72ad9a 100%);
+  --gold-grad: linear-gradient(135deg, #ecd18d 0%, #d28e52 100%);
 
   --danger: #ff2a6d;
-  --green: #00f5d4;
+  --green: #8fc6b2;
 
-  --r-lg: 26px;
-  --r: 20px;
-  --r-sm: 14px;
+  --r-lg: 28px;
+  --r: 22px;
+  --r-sm: 15px;
   --r-xs: 10px;
 
-  --shadow-vip: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 35px rgba(157, 78, 221, 0.2);
-  --shadow-card: 0 12px 35px -5px rgba(0, 0, 0, 0.6);
-  --shadow-button: 0 6px 20px rgba(255, 0, 128, 0.4);
+  --shadow-vip: 0 28px 70px -24px rgba(0, 0, 0, .9), 0 2px 0 rgba(255,255,255,.04) inset;
+  --shadow-card: 0 16px 36px -20px rgba(0, 0, 0, .86);
+  --shadow-button: 0 12px 26px rgba(196, 75, 53, .32);
 
   /* Desktop breakpoints */
   --bp-tablet: 768px;
@@ -60,4 +60,3 @@
   --sidebar-width: 280px;
   --content-max: 760px;
 }
-

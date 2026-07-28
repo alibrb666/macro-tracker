@@ -9,16 +9,16 @@
   transform: translateX(-50%);
   width: calc(100% - 32px);
   max-width: 440px;
-  background: rgba(12, 14, 22, 0.82);
+  background: rgba(23, 25, 28, 0.84);
   backdrop-filter: blur(32px) saturate(180%);
   -webkit-backdrop-filter: blur(32px) saturate(180%);
   border: 1px solid var(--border-light);
-  border-radius: 28px;
+  border-radius: 24px;
   display: flex;
   z-index: 100;
   padding: 8px 12px;
   gap: 6px;
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.8), 0 0 20px rgba(139, 92, 246, 0.15);
+  box-shadow: 0 22px 50px -12px rgba(0, 0, 0, .85), 0 1px 0 rgba(255,255,255,.07) inset;
 }
 
 .nav-btn {
@@ -42,7 +42,7 @@
 
 .nav-btn.active {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.075);
 }
 
 .nav-btn.active::after {
@@ -53,7 +53,7 @@
   transform: translateX(-50%);
   width: 24px;
   height: 3px;
-  background: var(--accent-grad);
+  background: var(--accent);
   border-radius: 0 0 4px 4px;
   box-shadow: 0 2px 12px var(--accent-glow);
 }
@@ -80,17 +80,17 @@
 }
 
 .page-header {
-  padding: 32px 0 18px;
+  padding: 38px 0 20px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
 }
 
 .page-title {
-  font-size: 32px;
-  font-weight: 900;
-  letter-spacing: -.8px;
-  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+  font-size: clamp(30px, 8vw, 38px);
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  background: linear-gradient(180deg, #fffdf8 0%, #c7c5bd 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -133,11 +133,11 @@
   }
   
   .nav::before {
-    content: '🍽️ Macro Tracker';
+    content: 'MT  /  MACRO TRACKER';
     display: block;
-    font-size: 18px;
+    font-size: 12px;
     font-weight: 900;
-    letter-spacing: -0.3px;
+    letter-spacing: 1.4px;
     padding: 0 8px 24px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 8px;
@@ -154,7 +154,7 @@
   }
   
   .nav-btn.active {
-    background: rgba(139,92,246,.12);
+    background: rgba(230,120,83,.12);
   }
   
   .nav-btn.active::after {
@@ -222,36 +222,36 @@
 .bento-dashboard {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  gap: 12px;
   margin-top: 16px;
   margin-bottom: 24px;
 }
 
 .bento-tile {
   background: var(--card);
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border);
   border-radius: var(--r);
   padding: 18px 16px;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: var(--shadow-card);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bento-tile:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   border-color: var(--border-highlight);
   box-shadow: var(--shadow-vip);
 }
 
 .bento-tile-banner {
   grid-column: span 4;
-  background: linear-gradient(135deg, rgba(125, 42, 191, 0.25) 0%, rgba(0, 242, 254, 0.15) 100%);
-  border: 1px solid rgba(157, 78, 221, 0.35);
+  background: linear-gradient(118deg, rgba(230,120,83,.22) 0%, rgba(117,171,151,.14) 100%);
+  border: 1px solid rgba(239, 161, 123, .25);
   padding: 16px 20px;
 }
 
@@ -262,7 +262,7 @@
   justify-content: center;
   padding: 22px 14px;
   min-height: 210px;
-  background: linear-gradient(145deg, rgba(255,0,127,0.08), rgba(157,78,221,0.12));
+  background: linear-gradient(145deg, rgba(230,120,83,.13), rgba(189,161,212,.10));
 }
 
 .bento-tile-macro {

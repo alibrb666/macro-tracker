@@ -15,6 +15,19 @@ body {
   -moz-osx-font-smoothing: grayscale;
   position: relative;
   overflow-x: hidden;
+  letter-spacing: -.01em;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .25;
+  background-image: linear-gradient(rgba(255,255,255,.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.022) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(to bottom, #000, transparent 82%);
 }
 
 body::before {
@@ -25,8 +38,8 @@ body::before {
   width: 50vw;
   height: 50vw;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(157, 78, 221, 0.18) 0%, transparent 70%);
-  animation: meshFloat 14s infinite ease-in-out;
+  background: radial-gradient(circle, rgba(230, 120, 83, .16) 0%, transparent 70%);
+  animation: meshFloat 18s infinite ease-in-out;
   pointer-events: none;
   z-index: 0;
 }
@@ -43,4 +56,3 @@ body::before {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-
