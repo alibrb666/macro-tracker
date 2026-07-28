@@ -41,7 +41,7 @@ function renderToday() {
   );
   const g = goalsForDate(viewKey());
 
-  // ── VIP Hero card ──────────────────────────────────────
+  // ── Bento Dashboard Rendering ────────────────────────────
   const eaten    = Math.round(tot.kcal);
   const remaining = g.kcal - eaten;
   const pctKcal  = Math.min(100, Math.round(eaten / (g.kcal || 1) * 100));
@@ -52,69 +52,77 @@ function renderToday() {
   const isWarn  = pctKcal > 85;
   const ringA   = isOver ? '#f43f5e' : isWarn ? '#f59e0b' : 'var(--accent)';
   const ringB   = isOver ? '#fb7185' : isWarn ? '#fbbf24' : 'var(--accent3)';
-  const h = new Date().getHours();
-  const greeting = h < 11 ? '☀️ Guten Morgen!' : h < 18 ? '👋 Guten Tag!' : '🌙 Guten Abend!';
 
-  const barRow = (label, val, goal, color, hexColor) => {
+  const miniCard = (label, val, goal, colorClass) => {
     const p = Math.min(100, goal > 0 ? Math.round(val / goal * 100) : 0);
-    const glow = hexColor ? `box-shadow:0 0 12px ${hexColor}66` : '';
-    return `<div class="hm-row">
-      <span class="hm-label" style="color:${color};font-weight:800">${label}</span>
-      <div class="hm-bar"><div class="hm-fill" style="width:${p}%;background:${color};${glow}"></div></div>
-      <span class="hm-val">${val}g <span style="opacity:.4">/</span> ${goal}g</span>
-    </div>`;
+    return `
+      <div class="bento-tile bento-tile-macro bento-macro-card">
+        <div class="bento-macro-header">
+          <span class="bento-macro-label">${label}</span>
+          <span class="bento-macro-pct">${p}%</span>
+        </div>
+        <div class="bento-macro-val">${val}<span> / ${goal}g</span></div>
+        <div class="progress-bar ${colorClass}"><div class="progress-fill" style="width:${p}%"></div></div>
+      </div>
+    `;
   };
 
   const heroEl = document.getElementById('today-hero');
   if (heroEl) {
     heroEl.innerHTML = `
-      <div class="today-hero" style="box-shadow:var(--shadow-vip);border-color:var(--border-light)">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-          <div style="font-size:12.5px;color:var(--muted);font-weight:700;letter-spacing:.4px;text-transform:uppercase">${greeting}</div>
-          <div style="font-size:11px;font-weight:800;color:var(--accent);background:rgba(139,92,246,0.12);padding:4px 10px;border-radius:12px;border:1px solid rgba(139,92,246,0.3)">PRO VIP</div>
-        </div>
-        <div class="hero-top">
-          <div class="hero-ring">
-            <svg width="108" height="108" viewBox="0 0 104 104">
+      <div class="bento-dashboard">
+        <!-- Tile 1: Hero Ring -->
+        <div class="bento-tile bento-tile-hero">
+          <div class="hero-ring" style="margin-bottom:12px;">
+            <svg width="120" height="120" viewBox="0 0 104 104">
               <defs>
                 <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stop-color="${ringA}"/>
                   <stop offset="100%" stop-color="${ringB}"/>
                 </linearGradient>
               </defs>
-              <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="9"/>
-              <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="url(#rg)" stroke-width="9"
+              <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="12"/>
+              <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="url(#rg)" stroke-width="12"
                 stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${dash.toFixed(1)}"
                 stroke-linecap="round" transform="rotate(-90 ${CX} ${CY})"
-                style="transition:stroke-dashoffset .8s cubic-bezier(0.16,1,0.3,1);filter:drop-shadow(0 0 6px ${ringA}66)"/>
-              <text x="${CX}" y="${CY-6}" text-anchor="middle" font-size="9.5" fill="var(--muted)" font-family="inherit" font-weight="800" letter-spacing="1">GEGESSEN</text>
-              <text x="${CX}" y="${CY+15}" text-anchor="middle" font-size="21" font-weight="900" fill="#ffffff" font-family="inherit">${pctKcal}%</text>
+                style="transition:stroke-dashoffset .8s cubic-bezier(0.16,1,0.3,1);filter:drop-shadow(0 0 8px ${ringA}55)"/>
+              <text x="${CX}" y="${CY-8}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="inherit" font-weight="800" letter-spacing="1">KCAL</text>
+              <text x="${CX}" y="${CY+16}" text-anchor="middle" font-size="24" font-weight="900" fill="#ffffff" font-family="inherit">${eaten}</text>
             </svg>
           </div>
-          <div class="hero-right">
-            <div class="hero-remaining-label" style="letter-spacing:.5px;font-weight:700">Verbleibend</div>
-            <div class="hero-remaining-val ${isOver ? 'over' : ''}" style="${!isOver ? 'background:linear-gradient(180deg,#ffffff,#cbd5e1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text' : ''}">${Math.abs(remaining)}<span style="font-size:15px;font-weight:600;color:var(--muted);-webkit-text-fill-color:var(--muted)"> kcal</span></div>
-            ${isOver ? `<div style="font-size:12px;color:var(--danger);font-weight:800;margin-bottom:6px">⚠️ Über Kalorienziel</div>` : ''}
-            <div class="hero-meta">
-              <span>Gegessen <b style="color:var(--text)">${eaten} kcal</b></span>
-              <span>Ziel <b style="color:var(--text)">${g.kcal} kcal</b></span>
+          <div style="text-align:center;">
+            <div class="hero-remaining-label">Verbleibend</div>
+            <div class="hero-remaining-val ${isOver ? 'over' : ''}" style="font-size:24px;margin-bottom:0;">
+              ${Math.abs(remaining)}
             </div>
           </div>
         </div>
-        <div class="hero-bars">
-          ${barRow('Protein', Math.round(tot.protein*10)/10, g.protein, 'var(--protein)', '#38bdf8')}
-          ${barRow('Carbs',   Math.round(tot.carbs*10)/10,   g.carbs,   'var(--carbs)',   '#34d399')}
-          ${barRow('Fett',    Math.round(tot.fat*10)/10,     g.fat,     'var(--fat)',     '#fbbf24')}
-        </div>
-      </div>`;
+        
+        <!-- Tiles 2, 3, 4: Macro Cards -->
+        ${miniCard('Protein', Math.round(tot.protein*10)/10, g.protein, 'protein')}
+        ${miniCard('Carbs',   Math.round(tot.carbs*10)/10,   g.carbs,   'carbs')}
+        ${miniCard('Fett',    Math.round(tot.fat*10)/10,     g.fat,     'fat')}
+        
+        <!-- Tiles 5, 6: Pro Widgets (Injected via JS) -->
+        <div id="water-card" class="bento-tile bento-tile-widget" style="padding:0;background:none;border:none;box-shadow:none;"></div>
+        <div id="fasting-widget" class="bento-tile bento-tile-widget" style="padding:0;background:none;border:none;box-shadow:none;"></div>
+        
+        <!-- Tile 7: Meal Carousel -->
+        <div class="bento-tile bento-tile-full" id="meals-container"></div>
+      </div>
+    `;
   }
 
-  // ── Meal sections ──────────────────────────────────
+  // Render Pro Widgets inside their new bento slots
+  if (typeof renderWaterCard === 'function') renderWaterCard();
+  if (typeof renderFastingWidget === 'function') renderFastingWidget();
+
+  // ── Meal Carousel Rendering ──────────────────────────
   renderSuggestions(allEntries, tot, g);
 
   const containerEl = document.getElementById('meals-container');
   if (containerEl) {
-    containerEl.innerHTML = MEALS.map(meal => {
+    const mealHtml = MEALS.map(meal => {
       const mEntries = allEntries.filter(e => e.meal === meal.id);
       const mTot = mEntries.reduce(
         (a, e) => ({ kcal:a.kcal+e.kcal, protein:a.protein+e.protein, carbs:a.carbs+e.carbs, fat:a.fat+e.fat }),
@@ -122,7 +130,7 @@ function renderToday() {
       );
 
       const itemsHtml = mEntries.length === 0
-        ? `<div class="meal-empty">Noch leer — tippe auf <b>+</b> zum Hinzufügen</div>`
+        ? `<div class="meal-empty">Noch leer — tippe auf das <b>+</b></div>`
         : mEntries.map(e => {
             const idx  = allEntries.indexOf(e);
             const food = db.foods.find(f => f.id === e.foodId);
@@ -143,14 +151,10 @@ function renderToday() {
                   <div class="meal-log-sub">
                     <span style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 5px">${e.units ? `${unitCountLabel(e.units, e.unitLabel, e.unitPlural)} · ${e.amount} g` : `${e.amount} g`}</span>
                     <b style="color:var(--kcal)">${e.kcal} kcal</b>
-                    <span>P <b>${e.protein}g</b></span>
-                    <span>C <b>${e.carbs}g</b></span>
-                    <span>F <b>${e.fat}g</b></span>
                   </div>
                 </div>
                 <button class="btn-del" onclick="deleteEntry(${idx})" title="Löschen">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="3 6 5 6 21 6"/>
                     <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                     <path d="M10 11v6M14 11v6"/>
                   </svg>
@@ -158,34 +162,33 @@ function renderToday() {
               </div>`;
           }).join('');
 
-      const footer = mEntries.length > 0 ? `
-        <div class="meal-footer">
-          <span style="color:var(--kcal)">${Math.round(mTot.kcal)} kcal</span>
-          <span style="color:var(--protein)">${Math.round(mTot.protein*10)/10}g P</span>
-          <span style="color:var(--carbs)">${Math.round(mTot.carbs*10)/10}g C</span>
-          <span style="color:var(--fat)">${Math.round(mTot.fat*10)/10}g F</span>
-        </div>` : '';
-
       return `
         <div class="meal-section" data-meal="${meal.id}"
              ondragover="dragOver(event,'${meal.id}')"
              ondragleave="dragLeave(event)"
              ondrop="dragDrop(event,'${meal.id}')">
           <div class="meal-header">
-            <span class="meal-icon">${meal.emoji}</span>
-            <span class="meal-name">${meal.label}</span>
-            ${mEntries.length > 0 ? `<span class="meal-total-kcal">${Math.round(mTot.kcal)} kcal</span>` : ''}
+            <div class="meal-header-left">
+              <div class="meal-icon">${meal.emoji}</div>
+              <div>
+                <div class="meal-name">${meal.label}</div>
+                ${mEntries.length > 0 ? `<div class="meal-total-kcal">${Math.round(mTot.kcal)} kcal</div>` : ''}
+              </div>
+            </div>
             <button class="meal-add-btn" onclick="openLogModal('${meal.id}')" title="Hinzufügen">+</button>
           </div>
           <div class="meal-items">${itemsHtml}</div>
-          ${footer}
+          ${mEntries.length > 0 ? `
+          <div class="meal-footer">
+            <span style="color:var(--protein)">${Math.round(mTot.protein*10)/10}g P</span>
+            <span style="color:var(--carbs)">${Math.round(mTot.carbs*10)/10}g C</span>
+            <span style="color:var(--fat)">${Math.round(mTot.fat*10)/10}g F</span>
+          </div>` : ''}
         </div>`;
     }).join('');
-  }
 
-  // Render Pro Widgets (Water Tracker & Fasting Clock)
-  if (typeof renderWaterCard === 'function') renderWaterCard();
-  if (typeof renderFastingWidget === 'function') renderFastingWidget();
+    containerEl.innerHTML = `<div class="meal-carousel">${mealHtml}</div>`;
+  }
 }
 
 function deleteEntry(i) {

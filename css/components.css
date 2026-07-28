@@ -19,27 +19,36 @@
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
-/* ── MACRO CARDS (legacy) ─────────────────────────────────────── */
-.macro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-.macro-card {
-  background: rgba(255,255,255,0.03); border-radius: var(--r);
-  padding: 16px; border: 1px solid var(--border);
+/* ── MACRO CARDS (Bento Redesign) ─────────────────────────────────────── */
+.bento-macro-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
-.macro-card.kcal    { border-top: 2px solid var(--kcal); }
-.macro-card.protein { border-top: 2px solid var(--protein); }
-.macro-card.carbs   { border-top: 2px solid var(--carbs); }
-.macro-card.fat     { border-top: 2px solid var(--fat); }
-.macro-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; font-weight: 700; }
-.macro-pct   { font-size: 11px; color: var(--muted); font-weight: 600; }
-.macro-val   { font-size: 24px; font-weight: 900; margin: 4px 0 2px; line-height: 1; }
-.macro-val span { font-size: 13px; font-weight: 400; color: var(--muted); }
-.macro-goal  { font-size: 11px; color: var(--muted); margin-bottom: 8px; font-weight: 600; }
-.progress-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-.progress-fill { height: 100%; border-radius: 2px; transition: width .5s ease; }
-.kcal    .progress-fill { background: var(--kcal); }
-.protein .progress-fill { background: var(--protein); }
-.carbs   .progress-fill { background: var(--carbs); }
-.fat     .progress-fill { background: var(--fat); }
+.bento-macro-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.bento-macro-label {
+  font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; font-weight: 800;
+}
+.bento-macro-pct {
+  font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 8px;
+}
+.bento-macro-val {
+  font-size: 22px; font-weight: 900; line-height: 1; margin-bottom: 8px; letter-spacing: -0.5px;
+}
+.bento-macro-val span {
+  font-size: 12px; font-weight: 500; color: var(--muted);
+}
+.progress-bar { height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; margin-top: auto; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
+.kcal    .progress-fill { background: var(--kcal); box-shadow: 0 0 8px var(--kcal); }
+.protein .progress-fill { background: var(--protein); box-shadow: 0 0 8px var(--protein); }
+.carbs   .progress-fill { background: var(--carbs); box-shadow: 0 0 8px var(--carbs); }
+.fat     .progress-fill { background: var(--fat); box-shadow: 0 0 8px var(--fat); }
 
 /* ── SECTION TITLE ────────────────────────────────────────────── */
 .section-title {
@@ -442,62 +451,100 @@
 .empty .icon { font-size: 52px; margin-bottom: 14px; opacity: .6; }
 .empty p { font-size: 14px; line-height: 1.7; }
 
-/* ── MEAL SECTIONS ────────────────────────────────────────────── */
+/* ── MEAL SECTIONS (Bento Carousel) ──────────────────────────────── */
+.meal-carousel {
+  display: flex;
+  overflow-x: auto;
+  gap: 12px;
+  padding: 16px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.meal-carousel::-webkit-scrollbar { display: none; }
+
 .meal-section {
-  background: rgba(255,255,255,0.025);
-  border: 1px solid var(--border);
-  border-radius: var(--r); overflow: hidden; margin-bottom: 14px;
-  transition: border-color .2s;
+  flex: 0 0 85%;
+  max-width: 340px;
+  scroll-snap-align: center;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border-light);
+  border-radius: 24px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  transition: transform 0.3s;
 }
+
 .meal-header {
-  display: flex; align-items: center; gap: 11px;
-  padding: 13px 16px; background: rgba(255,255,255,0.03);
-  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
-.meal-icon { font-size: 19px; flex-shrink: 0; }
-.meal-name { font-size: 14px; font-weight: 800; flex: 1; letter-spacing: -.15px; }
-.meal-total-kcal { font-size: 12px; color: var(--muted); white-space: nowrap; font-weight: 600; }
+
+.meal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.meal-icon {
+  font-size: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.meal-name { font-size: 16px; font-weight: 800; letter-spacing: -0.2px; }
+.meal-total-kcal { font-size: 12px; color: var(--muted); font-weight: 700; }
+
 .meal-add-btn {
-  width: 30px; height: 30px; border-radius: 50%;
-  border: none; color: #fff; cursor: pointer; font-size: 22px; line-height: 1;
+  width: 36px; height: 36px; border-radius: 50%;
+  border: none; color: #fff; cursor: pointer; font-size: 24px; line-height: 1;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 300; transition: transform .15s, box-shadow .2s; flex-shrink: 0;
+  font-weight: 300; transition: transform .15s, box-shadow .2s;
 }
-.meal-add-btn:hover { transform: scale(1.14); }
-.meal-items { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.meal-add-btn:hover { transform: scale(1.1); }
+.meal-items { display: flex; flex-direction: column; gap: 8px; flex: 1; }
 .meal-empty {
-  padding: 18px 16px; font-size: 13px; color: var(--muted);
-  text-align: center; font-style: italic;
+  padding: 24px 16px; font-size: 13px; color: var(--muted);
+  text-align: center; font-style: italic; opacity: 0.6;
 }
 .meal-footer {
-  padding: 10px 16px; border-top: 1px solid var(--border);
-  background: rgba(255,255,255,0.025);
-  display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; font-weight: 700;
+  padding-top: 12px; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.05);
+  display: flex; gap: 12px; font-size: 11.5px; font-weight: 800; justify-content: space-between;
 }
 .meal-log-item {
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
-  border-radius: var(--r-sm); padding: 10px 12px;
-  display: flex; align-items: center; gap: 10px;
-  transition: background .15s, border-color .15s;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 16px; padding: 10px;
+  display: flex; align-items: center; gap: 12px;
+  transition: all .2s;
 }
-.meal-log-item:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.1); }
+.meal-log-item:hover { background: rgba(255,255,255,0.06); transform: translateX(2px); }
 .meal-log-thumb {
-  width: 38px; height: 38px; border-radius: var(--r-xs);
-  background: rgba(255,255,255,0.06); flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center; font-size: 18px; overflow: hidden;
+  width: 42px; height: 42px; border-radius: 12px;
+  background: rgba(255,255,255,0.08); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden;
 }
 .meal-log-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .meal-log-info { flex: 1; min-width: 0; }
-.meal-log-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.meal-log-sub  { font-size: 11px; color: var(--muted); display: flex; gap: 7px; flex-wrap: wrap; margin-top: 3px; align-items: center; }
+.meal-log-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+.meal-log-sub  { font-size: 11px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; font-weight: 500; }
 .meal-log-sub b { font-weight: 700; }
 
 /* Meal color accents */
-.meal-section[data-meal="fruehstueck"] { --mc: #fb923c; --mc-glow: rgba(251,146,60,.3); }
-.meal-section[data-meal="hauptspeise"] { --mc: #8b5cf6; --mc-glow: rgba(139,92,246,.3); }
-.meal-section[data-meal="snack"]       { --mc: #34d399; --mc-glow: rgba(52,211,153,.3); }
-.meal-header { border-left: 3px solid var(--mc, var(--border)); }
-.meal-add-btn { background: var(--mc, var(--accent)); box-shadow: 0 0 14px var(--mc-glow, rgba(139,92,246,.3)); }
+.meal-section[data-meal="fruehstueck"] { --mc: #fb923c; --mc-glow: rgba(251,146,60,.4); }
+.meal-section[data-meal="hauptspeise"] { --mc: #8b5cf6; --mc-glow: rgba(139,92,246,.4); }
+.meal-section[data-meal="snack"]       { --mc: #34d399; --mc-glow: rgba(52,211,153,.4); }
+.meal-icon { color: var(--mc, #fff); border-color: var(--mc-glow); background: rgba(0,0,0,0.2); }
+.meal-add-btn { background: var(--mc, var(--accent)); box-shadow: 0 4px 14px var(--mc-glow, rgba(139,92,246,.3)); }
 
 /* ── MEAL PILLS ───────────────────────────────────────────────── */
 .meal-pills-row { display: flex; gap: 8px; margin-bottom: 14px; }
