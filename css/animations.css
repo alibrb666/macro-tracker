@@ -9,14 +9,27 @@
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes pulseGlow {
-  0%, 100% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.05); opacity: 1; }
+@keyframes meshFloat {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.08); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+@keyframes borderGlow {
+  0%, 100% { border-color: rgba(157, 78, 221, 0.3); box-shadow: 0 0 15px rgba(157, 78, 221, 0.15); }
+  50% { border-color: rgba(0, 242, 254, 0.6); box-shadow: 0 0 25px rgba(0, 242, 254, 0.3); }
+}
+
+@keyframes ringPulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.03); opacity: 1; }
 }
 
 .meal-log-item { animation: slideIn .25s cubic-bezier(0.16, 1, 0.3, 1); }
 .sugg-card { animation: fadeUp .35s cubic-bezier(0.16, 1, 0.3, 1); }
 .login-inner { animation: fadeUp .45s cubic-bezier(0.16, 1, 0.3, 1); }
+.bento-tile-hero { animation: borderGlow 6s infinite ease-in-out; }
 
 @keyframes shake {
   0%,100% { transform: translateX(0); }

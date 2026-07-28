@@ -41,17 +41,35 @@ function renderToday() {
   );
   const g = goalsForDate(viewKey());
 
-  // ── Bento Dashboard Rendering ────────────────────────────
-  const eaten    = Math.round(tot.kcal);
+  // ── Vitality Score & Macro Ratio Calculations ───────────
+  const eaten     = Math.round(tot.kcal);
   const remaining = g.kcal - eaten;
-  const pctKcal  = Math.min(100, Math.round(eaten / (g.kcal || 1) * 100));
+  const pctKcal   = Math.min(100, Math.round(eaten / (g.kcal || 1) * 100));
+  const pctProtein= Math.min(100, Math.round((tot.protein || 0) / (g.protein || 1) * 100));
+  const waterMl   = (db.water && db.water[viewKey()]) || 0;
+  const waterGoal = (db.settings && db.settings.waterGoal) || 2500;
+  const pctWater  = Math.min(100, Math.round(waterMl / waterGoal * 100));
+
+  // Vitality Score (0-100)
+  const scoreKcal = Math.max(0, 35 - Math.abs(100 - pctKcal) * 0.35);
+  const scoreProt = Math.min(35, (tot.protein / (g.protein || 1)) * 35);
+  const scoreWat  = (pctWater / 100) * 20;
+  const scoreFast = (db.fasting && db.fasting.active) ? 10 : 5;
+  const vitalityScore = Math.min(100, Math.round(scoreKcal + scoreProt + scoreWat + scoreFast));
+
+  // Macro Ratio (% split of P / C / F)
+  const totalGrams = (tot.protein || 0) + (tot.carbs || 0) + (tot.fat || 0);
+  const rP = totalGrams > 0 ? Math.round((tot.protein / totalGrams) * 100) : 33;
+  const rC = totalGrams > 0 ? Math.round((tot.carbs / totalGrams) * 100) : 34;
+  const rF = totalGrams > 0 ? Math.max(0, 100 - rP - rC) : 33;
+
   const R = 42, CX = 52, CY = 52;
   const C = 2 * Math.PI * R;
   const dash = C - pctKcal / 100 * C;
   const isOver  = remaining < 0;
   const isWarn  = pctKcal > 85;
-  const ringA   = isOver ? '#f43f5e' : isWarn ? '#f59e0b' : 'var(--accent)';
-  const ringB   = isOver ? '#fb7185' : isWarn ? '#fbbf24' : 'var(--accent3)';
+  const ringA   = isOver ? '#ff2a6d' : isWarn ? '#ffaa00' : 'var(--accent)';
+  const ringB   = isOver ? '#ff5500' : isWarn ? '#ffee00' : 'var(--protein)';
 
   const miniCard = (label, val, goal, colorClass) => {
     const p = Math.min(100, goal > 0 ? Math.round(val / goal * 100) : 0);
@@ -71,9 +89,31 @@ function renderToday() {
   if (heroEl) {
     heroEl.innerHTML = `
       <div class="bento-dashboard">
-        <!-- Tile 1: Hero Ring -->
+        <!-- Banner Tile: Vitality Score & Quick Action Dock -->
+        <div class="bento-tile bento-tile-banner">
+          <div class="vitality-card" style="margin-bottom: 12px;">
+            <div class="vitality-left">
+              <div class="vitality-badge">⚡</div>
+              <div>
+                <div class="vitality-info-title">Tages-Vitalität</div>
+                <div class="vitality-info-sub">${vitalityScore >= 80 ? '🌟 Exzellent – Auf Kurs!' : vitalityScore >= 50 ? '👍 Gute Balance!' : '🎯 Weitermachen!'}</div>
+              </div>
+            </div>
+            <div class="vitality-score-num">${vitalityScore}<span style="font-size:14px;opacity:0.7">%</span></div>
+          </div>
+          
+          <!-- Quick Log Action Dock -->
+          <div class="quick-dock">
+            <button class="quick-dock-btn" onclick="addWaterQuick(250)" title="+250ml Wasser">💧 +250 ml</button>
+            <button class="quick-dock-btn" onclick="openLogModal('hauptspeise')" title="Mahlzeit loggen">🍽️ Loggen</button>
+            <button class="quick-dock-btn" onclick="openWeightModal()" title="Gewicht eintragen">⚖️ Gewicht</button>
+            <button class="quick-dock-btn" onclick="openFoodModal()" title="Foto-OCR Scan">📸 Foto-OCR</button>
+          </div>
+        </div>
+
+        <!-- Tile 1: Main Glowing Kcal Ring -->
         <div class="bento-tile bento-tile-hero">
-          <div class="hero-ring" style="margin-bottom:12px;">
+          <div class="hero-ring" style="margin-bottom:10px;">
             <svg width="120" height="120" viewBox="0 0 104 104">
               <defs>
                 <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -81,33 +121,42 @@ function renderToday() {
                   <stop offset="100%" stop-color="${ringB}"/>
                 </linearGradient>
               </defs>
-              <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="12"/>
-              <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="url(#rg)" stroke-width="12"
+              <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="11"/>
+              <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="url(#rg)" stroke-width="11"
                 stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${dash.toFixed(1)}"
                 stroke-linecap="round" transform="rotate(-90 ${CX} ${CY})"
-                style="transition:stroke-dashoffset .8s cubic-bezier(0.16,1,0.3,1);filter:drop-shadow(0 0 8px ${ringA}55)"/>
-              <text x="${CX}" y="${CY-8}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="inherit" font-weight="800" letter-spacing="1">KCAL</text>
+                style="transition:stroke-dashoffset .8s cubic-bezier(0.16,1,0.3,1);filter:drop-shadow(0 0 10px ${ringA}77)"/>
+              <text x="${CX}" y="${CY-8}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="inherit" font-weight="800" letter-spacing="1">GEGESSEN</text>
               <text x="${CX}" y="${CY+16}" text-anchor="middle" font-size="24" font-weight="900" fill="#ffffff" font-family="inherit">${eaten}</text>
             </svg>
           </div>
           <div style="text-align:center;">
-            <div class="hero-remaining-label">Verbleibend</div>
-            <div class="hero-remaining-val ${isOver ? 'over' : ''}" style="font-size:24px;margin-bottom:0;">
-              ${Math.abs(remaining)}
+            <div class="hero-remaining-label">VERBLEIBEND</div>
+            <div class="hero-remaining-val ${isOver ? 'over' : ''}" style="font-size:24px;margin-bottom:4px;font-weight:900;">
+              ${Math.abs(remaining)} <span style="font-size:13px;font-weight:600;color:var(--muted)">kcal</span>
+            </div>
+            <!-- Macro Ratio Indicator -->
+            <div style="font-size:10.5px;color:var(--muted);font-weight:800;letter-spacing:0.4px;">
+              P <b style="color:var(--protein)">${rP}%</b> · C <b style="color:var(--carbs)">${rC}%</b> · F <b style="color:var(--fat)">${rF}%</b>
+            </div>
+            <div class="macro-ratio-bar">
+              <div class="macro-ratio-seg" style="width:${rP}%;background:var(--protein);"></div>
+              <div class="macro-ratio-seg" style="width:${rC}%;background:var(--carbs);"></div>
+              <div class="macro-ratio-seg" style="width:${rF}%;background:var(--fat);"></div>
             </div>
           </div>
         </div>
         
-        <!-- Tiles 2, 3, 4: Macro Cards -->
-        ${miniCard('Protein', Math.round(tot.protein*10)/10, g.protein, 'protein')}
-        ${miniCard('Carbs',   Math.round(tot.carbs*10)/10,   g.carbs,   'carbs')}
-        ${miniCard('Fett',    Math.round(tot.fat*10)/10,     g.fat,     'fat')}
+        <!-- Tiles 2, 3, 4: Macro Bento Cards -->
+        ${miniCard('Protein', Math.round((tot.protein||0)*10)/10, g.protein, 'protein')}
+        ${miniCard('Carbs',   Math.round((tot.carbs||0)*10)/10,   g.carbs,   'carbs')}
+        ${miniCard('Fett',    Math.round((tot.fat||0)*10)/10,     g.fat,     'fat')}
         
-        <!-- Tiles 5, 6: Pro Widgets (Injected via JS) -->
+        <!-- Tiles 5, 6: Pro Widgets (Water & Fasting) -->
         <div id="water-card" class="bento-tile bento-tile-widget" style="padding:0;background:none;border:none;box-shadow:none;"></div>
         <div id="fasting-widget" class="bento-tile bento-tile-widget" style="padding:0;background:none;border:none;box-shadow:none;"></div>
         
-        <!-- Tile 7: Meal Carousel -->
+        <!-- Tile 7: Glassmorphic Meal Carousel -->
         <div class="bento-tile bento-tile-full" id="meals-container"></div>
       </div>
     `;

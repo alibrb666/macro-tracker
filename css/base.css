@@ -13,6 +13,22 @@ body {
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: -15vw;
+  right: -15vw;
+  width: 50vw;
+  height: 50vw;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(157, 78, 221, 0.18) 0%, transparent 70%);
+  animation: meshFloat 14s infinite ease-in-out;
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* Mobile container */

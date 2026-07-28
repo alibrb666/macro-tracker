@@ -222,28 +222,37 @@
 .bento-dashboard {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  gap: 14px;
   margin-top: 16px;
   margin-bottom: 24px;
 }
 
 .bento-tile {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--card);
   border: 1px solid var(--border-light);
-  border-radius: 20px;
-  padding: 16px;
+  border-radius: var(--r);
+  padding: 18px 16px;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-vip);
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-card);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.bento-tile:active {
-  transform: scale(0.97);
+.bento-tile:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-highlight);
+  box-shadow: var(--shadow-vip);
+}
+
+.bento-tile-banner {
+  grid-column: span 4;
+  background: linear-gradient(135deg, rgba(125, 42, 191, 0.25) 0%, rgba(0, 242, 254, 0.15) 100%);
+  border: 1px solid rgba(157, 78, 221, 0.35);
+  padding: 16px 20px;
 }
 
 .bento-tile-hero {
@@ -251,13 +260,15 @@
   grid-row: span 2;
   align-items: center;
   justify-content: center;
-  padding: 24px 16px;
-  background: linear-gradient(145deg, rgba(255,255,255,0.06), rgba(0,0,0,0.2));
+  padding: 22px 14px;
+  min-height: 210px;
+  background: linear-gradient(145deg, rgba(255,0,127,0.08), rgba(157,78,221,0.12));
 }
 
 .bento-tile-macro {
   grid-column: span 2;
-  justify-content: center;
+  justify-content: space-between;
+  min-height: 100px;
 }
 
 .bento-tile-widget {
@@ -266,7 +277,7 @@
 
 .bento-tile-full {
   grid-column: span 4;
-  padding: 0; /* Let inner content manage padding if it's a carousel */
+  padding: 0;
   background: none;
   border: none;
   box-shadow: none;
@@ -276,9 +287,10 @@
 @media (min-width: 768px) {
   .bento-dashboard {
     grid-template-columns: repeat(6, 1fr);
-    gap: 16px;
+    gap: 18px;
   }
   
+  .bento-tile-banner { grid-column: span 6; }
   .bento-tile-hero { grid-column: span 3; grid-row: span 2; }
   .bento-tile-macro { grid-column: span 3; }
   .bento-tile-widget { grid-column: span 3; }
