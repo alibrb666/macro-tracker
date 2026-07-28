@@ -4,33 +4,76 @@
 function renderLibrary(query = '') {
   const container = document.getElementById('lib-grid');
   if (!container) return;
-  const items = db.foods.filter(f => matchQuery(f.name, query));
+  const filters = [
+    { id: 'all', label: 'Alle' },
+    { id: 'protein', label: 'Proteinreich' },
+    { id: 'quick', label: 'Quick Log' },
+    { id: 'photos', label: 'Mit Foto' },
+  ];
+  const summary = document.getElementById('library-summary');
+  const filterBar = document.getElementById('library-filters');
+  const filtered = db.foods.filter(food => {
+    if (!matchQuery(food.name, query)) return false;
+    if (libraryFilter === 'protein') return food.per100g.protein >= 15;
+    if (libraryFilter === 'quick') return food.servingSize > 0 && food.servingSize <= 100;
+    if (libraryFilter === 'photos') return Boolean(food.photo);
+    return true;
+  });
+  if (summary) summary.innerHTML = `<span class="library-eyebrow">DEINE FOOD COLLECTION</span><strong>${filtered.length}</strong><span>${filtered.length === 1 ? 'Lebensmittel' : 'Lebensmittel'} bereit zum Loggen</span>`;
+  if (filterBar) filterBar.innerHTML = filters.map(filter =>
+    `<button class="library-filter ${filter.id === libraryFilter ? 'active' : ''}" onclick="setLibraryFilter('${filter.id}')">${filter.label}</button>`
+  ).join('');
+  const items = filtered;
   if (!items.length) {
-    container.innerHTML = `<div class="empty" style="grid-column: 1/-1;"><div class="icon">🔍</div><p>Keine Lebensmittel gefunden.</p></div>`;
+    container.innerHTML = `<div class="library-empty"><div class="icon">⌁</div><strong>Hier ist noch Platz für etwas Gutes.</strong><p>Ändere die Filter oder lege ein neues Lebensmittel an.</p><button class="btn-primary" onclick="openFoodModal('')">Lebensmittel anlegen</button></div>`;
     return;
   }
-  container.innerHTML = items.map(f => {
+  container.innerHTML = items.map((f, index) => {
     const thumb = f.photo
-      ? `<div class="lib-card-thumb"><img src="${f.photo}" loading="lazy" decoding="async"></div>`
-      : `<div class="lib-card-thumb">🍽️</div>`;
+      ? `<div class="library-card-image"><img src="${f.photo}" loading="lazy" decoding="async" alt=""></div>`
+      : `<div class="library-card-image library-card-fallback"><span>${foodEmoji(f.name)}</span></div>`;
+    const proteinWidth = Math.min(100, Math.round(f.per100g.protein / 30 * 100));
     return `
-      <div class="lib-card" onclick="openFoodModal('${f.id}')">
+      <button class="library-card" style="--delay:${Math.min(index, 10) * 45}ms" onclick="openFoodModal('${f.id}')" aria-label="${esc(f.name)} bearbeiten">
         ${thumb}
-        <div class="lib-card-name">${esc(f.name)}</div>
-        <div class="lib-card-meta">
-          <span style="color:var(--kcal);font-weight:700">${f.per100g.kcal} kcal</span>
-          <div style="display:flex;gap:4px;flex-wrap:wrap">
-            <span>P ${f.per100g.protein}</span>
-            <span>C ${f.per100g.carbs}</span>
-            <span>F ${f.per100g.fat}</span>
+        <span class="library-card-sheen"></span>
+        <div class="library-card-content">
+          <div class="library-card-topline"><span>${f.per100g.kcal} KCAL</span><span>${f.servingSize || 100} G PORTION</span></div>
+          <div class="library-card-name">${esc(f.name)}</div>
+          <div class="library-macro-row">
+            <span><b>${f.per100g.protein}</b> Protein</span>
+            <span><b>${f.per100g.carbs}</b> KH</span>
+            <span><b>${f.per100g.fat}</b> Fett</span>
           </div>
-          ${f.unit ? `<div style="opacity:.6;margin-top:2px;color:var(--text);font-weight:500;font-size:10px">1 ${esc(f.unit.label)} = ${f.unit.g}g</div>` : ''}
+          <div class="library-protein-meter"><i style="width:${proteinWidth}%"></i></div>
+          <div class="library-card-footer">${f.unit ? `1 ${esc(f.unit.label)} · ${f.unit.g} g` : 'Pro 100 g'}<span>Bearbeiten →</span></div>
         </div>
-      </div>`;
+      </button>`;
   }).join('');
+  container.querySelectorAll('.library-card').forEach(card => {
+    card.addEventListener('pointermove', event => {
+      const rect = card.getBoundingClientRect();
+      card.style.setProperty('--pointer-x', `${event.clientX - rect.left}px`);
+      card.style.setProperty('--pointer-y', `${event.clientY - rect.top}px`);
+    });
+  });
+}
+
+function foodEmoji(name) {
+  const text = name.toLowerCase();
+  if (/protein|skyr|quark|hähnchen|egg|ei/.test(text)) return '◒';
+  if (/brot|reis|hafer|sandwich|pasta/.test(text)) return '◐';
+  if (/milch|joghurt|yopro|caffe/.test(text)) return '◌';
+  return '◇';
 }
 
 let editFoodId = null;
+let libraryFilter = 'all';
+
+function setLibraryFilter(filter) {
+  libraryFilter = filter;
+  renderLibrary(document.getElementById('lib-search').value);
+}
 
 function openFoodModal(id) {
   editFoodId = id;
