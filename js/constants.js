@@ -1,0 +1,231 @@
+// ===== constants.js =====
+// Global constants and config
+
+const CONFIG = {
+  PROTEIN_PER_KG: 1.8,
+  FAT_PER_KG: 0.9,
+  MIN_FAT_G: 40,
+  MIN_CARBS_G: 30,
+  CUT_FAT_MULTIPLIER: 0.88,
+  CUT_FAT_MIN_PER_KG: 0.7,
+  BULK_FAT_MULTIPLIER: 1.1,
+  BULK_FAT_MAX_PER_KG: 1.1,
+  SYNC_DEBOUNCE_MS: 1500,
+  ACTIVITY_FACTORS: {
+    1.2: 'Sitzend (wenig/kein Sport)',
+    1.375: 'Leicht aktiv (1-3x/Woche)',
+    1.55: 'Moderat aktiv (3-5x/Woche)',
+    1.725: 'Sehr aktiv (6-7x/Woche)',
+    1.9: 'Extrem aktiv (2x/Tag)',
+  },
+};
+
+const MEALS = [
+  { id: 'fruehstueck',  label: 'Frühstück',   emoji: '🌅' },
+  { id: 'hauptspeise',  label: 'Hauptspeise',  emoji: '🍽️' },
+  { id: 'snack',        label: 'Snack',         emoji: '🍎' },
+];
+
+const USERS_KEY  = 'mt-users';      // [{ id, name, emoji, pinHash }]
+const LEGACY_KEY = 'macro-tracker'; // alte Single-User-Daten
+const PENDING_NAME_KEY = 'mt-pending-profile-name'; // bei Registrierung gemerkter Profilname
+const EMPTY_DB   = () => ({ foods:[], log:{}, goals:{kcal:2000,protein:150,carbs:250,fat:65}, profile:null, weights:[] });
+const AVATARS    = ['🙂','💪','🏃','🥗','🔥','⭐','🦁','🐻','🦊','🐱','🦄','🌸','🏆','🎯','🚀','🍎','🥑','🧗'];
+
+const TOTAL_STEPS = 6;
+
+const API_BASE = 'https://macro-tracker-production-2915.up.railway.app';
+const SUPABASE_URL = 'https://pxeejfowdivavcqbigsc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4ZWVqZm93ZGl2YXZjcWJpZ3NjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MTgzNzUsImV4cCI6MjA5NzM5NDM3NX0.af19l5t-EMvmuw-UyGP0yRNUJ5pRV7uqHe73fbDy1_g';
+const REDIRECT_URL = window.location.origin + window.location.pathname;
+
+const PRESET_CATS = [
+  { id: 'all',      label: '🍽️ Alle'            },
+  { id: 'fleisch',  label: '🥩 Fleisch'          },
+  { id: 'fisch',    label: '🐟 Fisch'            },
+  { id: 'milch',    label: '🥛 Milch & Ei'       },
+  { id: 'getreide', label: '🌾 Getreide & Stärke'},
+  { id: 'huelsen',  label: '🫘 Hülsenfrüchte'    },
+  { id: 'gemuese',  label: '🥦 Gemüse'           },
+  { id: 'obst',     label: '🍎 Obst'             },
+  { id: 'fette',    label: '🥑 Fette & Nüsse'    },
+  { id: 'sonstiges',label: '🍯 Sonstiges'        },
+];
+
+const PRESETS = [
+  // ══════ FLEISCH ══════════════════════════════════
+  { name:'Hühnerbrust (roh)',        cat:'fleisch', emoji:'🍗', serving:150, per100g:{ kcal:110, protein:23,  carbs:0,    fat:1.2 } },
+  { name:'Hähnchenschenkel (roh)',   cat:'fleisch', emoji:'🍗', serving:150, per100g:{ kcal:177, protein:18,  carbs:0,    fat:11  } },
+  { name:'Putenbrust (roh)',         cat:'fleisch', emoji:'🦃', serving:150, per100g:{ kcal:99,  protein:22,  carbs:0,    fat:1   } },
+  { name:'Rindersteak (roh)',        cat:'fleisch', emoji:'🥩', serving:150, per100g:{ kcal:217, protein:26,  carbs:0,    fat:12  } },
+  { name:'Rinderhack (20% Fett)',    cat:'fleisch', emoji:'🥩', serving:120, per100g:{ kcal:254, protein:17,  carbs:0,    fat:20  } },
+  { name:'Rinderhack (5% Fett)',     cat:'fleisch', emoji:'🥩', serving:120, per100g:{ kcal:137, protein:22,  carbs:0,    fat:5   } },
+  { name:'Schweinefilet (roh)',      cat:'fleisch', emoji:'🥩', serving:150, per100g:{ kcal:143, protein:22,  carbs:0,    fat:6   } },
+  { name:'Schweinekotelett (roh)',   cat:'fleisch', emoji:'🥩', serving:150, per100g:{ kcal:215, protein:21,  carbs:0,    fat:14  } },
+  { name:'Lammkeule (roh)',          cat:'fleisch', emoji:'🥩', serving:150, per100g:{ kcal:191, protein:22,  carbs:0,    fat:11  } },
+  { name:'Ribeye Steak (roh)',       cat:'fleisch', emoji:'🥩', serving:200, per100g:{ kcal:289, protein:24,  carbs:0,    fat:21  } },
+  { name:'Kalbsschnitzel (roh)',     cat:'fleisch', emoji:'🥩', serving:150, per100g:{ kcal:109, protein:21,  carbs:0,    fat:2.7 } },
+  { name:'Speck (geräuchert)',       cat:'fleisch', emoji:'🥓', serving:30,  per100g:{ kcal:541, protein:37,  carbs:0.7,  fat:42  } },
+  { name:'Salami',                   cat:'fleisch', emoji:'🥩', serving:30,  per100g:{ kcal:425, protein:22,  carbs:1,    fat:37  } },
+  { name:'Hähnchen-Aufschnitt',      cat:'fleisch', emoji:'🍗', serving:50,  per100g:{ kcal:105, protein:18,  carbs:1,    fat:3.2 } },
+  { name:'Tofu (natur)',             cat:'fleisch', emoji:'🧊', serving:150, per100g:{ kcal:76,  protein:8,   carbs:1.9,  fat:4.8 } },
+  { name:'Tempeh',                   cat:'fleisch', emoji:'🧊', serving:100, per100g:{ kcal:193, protein:19,  carbs:9,    fat:11  } },
+
+  // ══════ FISCH ════════════════════════════════════
+  { name:'Lachs (roh)',              cat:'fisch',   emoji:'🐟', serving:150, per100g:{ kcal:208, protein:20,  carbs:0,    fat:13  } },
+  { name:'Lachs (geräuchert)',       cat:'fisch',   emoji:'🐟', serving:80,  per100g:{ kcal:179, protein:25,  carbs:0,    fat:9   } },
+  { name:'Thunfisch (Dose, Natur)',  cat:'fisch',   emoji:'🐟', serving:100, per100g:{ kcal:116, protein:26,  carbs:0,    fat:1   } },
+  { name:'Thunfisch (Dose, Öl)',     cat:'fisch',   emoji:'🐟', serving:80,  per100g:{ kcal:198, protein:25,  carbs:0,    fat:11  } },
+  { name:'Kabeljau / Dorsch (roh)',  cat:'fisch',   emoji:'🐟', serving:150, per100g:{ kcal:82,  protein:18,  carbs:0,    fat:0.7 } },
+  { name:'Tilapia (roh)',            cat:'fisch',   emoji:'🐟', serving:150, per100g:{ kcal:96,  protein:20,  carbs:0,    fat:2   } },
+  { name:'Forelle (roh)',            cat:'fisch',   emoji:'🐟', serving:150, per100g:{ kcal:141, protein:20,  carbs:0,    fat:6   } },
+  { name:'Makrele (roh)',            cat:'fisch',   emoji:'🐟', serving:150, per100g:{ kcal:205, protein:19,  carbs:0,    fat:14  } },
+  { name:'Hering (roh)',             cat:'fisch',   emoji:'🐟', serving:100, per100g:{ kcal:158, protein:18,  carbs:0,    fat:9   } },
+  { name:'Sardinen (Dose, Öl)',      cat:'fisch',   emoji:'🐟', serving:80,  per100g:{ kcal:208, protein:25,  carbs:0,    fat:11  } },
+  { name:'Garnelen (roh)',           cat:'fisch',   emoji:'🦐', serving:120, per100g:{ kcal:85,  protein:20,  carbs:0.9,  fat:0.5 } },
+  { name:'Muscheln (gekocht)',       cat:'fisch',   emoji:'🦪', serving:100, per100g:{ kcal:86,  protein:12,  carbs:3.7,  fat:2.2 } },
+
+  // ══════ MILCH & EI ═══════════════════════════════
+  { name:'Vollei',                   cat:'milch',   emoji:'🥚', serving:60,  per100g:{ kcal:155, protein:13,  carbs:1.1,  fat:11  }, unit:{label:'Ei',plural:'Eier',g:60} },
+  { name:'Eiweiß (nur)',             cat:'milch',   emoji:'🥚', serving:35,  per100g:{ kcal:52,  protein:11,  carbs:0.7,  fat:0.2 }, unit:{label:'Eiweiß',plural:'Eiweiß',g:33} },
+  { name:'Eigelb',                   cat:'milch',   emoji:'🥚', serving:18,  per100g:{ kcal:322, protein:16,  carbs:3.6,  fat:27  }, unit:{label:'Eigelb',plural:'Eigelb',g:18} },
+  { name:'Vollmilch (3,5%)',         cat:'milch',   emoji:'🥛', serving:250, per100g:{ kcal:61,  protein:3.3, carbs:4.8,  fat:3.3 }, unit:{label:'Glas',plural:'Gläser',g:250} },
+  { name:'Halbfettmilch (1,5%)',     cat:'milch',   emoji:'🥛', serving:250, per100g:{ kcal:46,  protein:3.4, carbs:4.8,  fat:1.5 }, unit:{label:'Glas',plural:'Gläser',g:250} },
+  { name:'Magerquark (0,2%)',        cat:'milch',   emoji:'🫙', serving:200, per100g:{ kcal:67,  protein:12,  carbs:4,    fat:0.2 } },
+  { name:'Griechischer Joghurt',     cat:'milch',   emoji:'🫙', serving:200, per100g:{ kcal:97,  protein:9,   carbs:4,    fat:5   } },
+  { name:'Naturjoghurt (3,5%)',      cat:'milch',   emoji:'🫙', serving:150, per100g:{ kcal:62,  protein:3.5, carbs:4.8,  fat:3.5 } },
+  { name:'Skyr',                     cat:'milch',   emoji:'🫙', serving:200, per100g:{ kcal:63,  protein:11,  carbs:4,    fat:0.2 } },
+  { name:'Hüttenkäse',               cat:'milch',   emoji:'🫙', serving:150, per100g:{ kcal:98,  protein:11,  carbs:3.4,  fat:4.3 } },
+  { name:'Frischkäse (Doppelrahm)', cat:'milch',   emoji:'🧀', serving:30,  per100g:{ kcal:342, protein:6.5, carbs:2.5,  fat:34  } },
+  { name:'Frischkäse (Light)',       cat:'milch',   emoji:'🧀', serving:30,  per100g:{ kcal:120, protein:7,   carbs:3,    fat:9   } },
+  { name:'Ricotta',                  cat:'milch',   emoji:'🧀', serving:100, per100g:{ kcal:174, protein:11,  carbs:3,    fat:13  } },
+  { name:'Mozzarella',               cat:'milch',   emoji:'🧀', serving:125, per100g:{ kcal:280, protein:22,  carbs:2,    fat:21  }, unit:{label:'Kugel',plural:'Kugeln',g:125} },
+  { name:'Gouda (45%)',              cat:'milch',   emoji:'🧀', serving:30,  per100g:{ kcal:356, protein:25,  carbs:2.2,  fat:27  } },
+  { name:'Parmesan',                 cat:'milch',   emoji:'🧀', serving:15,  per100g:{ kcal:431, protein:38,  carbs:3.2,  fat:29  } },
+  { name:'Feta',                     cat:'milch',   emoji:'🧀', serving:50,  per100g:{ kcal:264, protein:14,  carbs:4.1,  fat:21  } },
+  { name:'Whey Protein (Isolat)',    cat:'milch',   emoji:'💪', serving:30,  per100g:{ kcal:370, protein:80,  carbs:5,    fat:4   } },
+  { name:'Casein Protein',           cat:'milch',   emoji:'💪', serving:30,  per100g:{ kcal:380, protein:80,  carbs:5,    fat:3   } },
+
+  // ══════ GETREIDE & STÄRKE ════════════════════════
+  { name:'Haferflocken (kernig)',    cat:'getreide',emoji:'🌾', serving:80,  per100g:{ kcal:368, protein:13,  carbs:58,   fat:7   } },
+  { name:'Basmati Reis (roh)',       cat:'getreide',emoji:'🍚', serving:80,  per100g:{ kcal:350, protein:8,   carbs:78,   fat:0.5 } },
+  { name:'Basmati Reis (gekocht)',   cat:'getreide',emoji:'🍚', serving:200, per100g:{ kcal:130, protein:3,   carbs:28,   fat:0.2 } },
+  { name:'Jasminreis (roh)',         cat:'getreide',emoji:'🍚', serving:80,  per100g:{ kcal:360, protein:7,   carbs:80,   fat:0.5 } },
+  { name:'Weißer Reis (roh)',        cat:'getreide',emoji:'🍚', serving:80,  per100g:{ kcal:365, protein:7,   carbs:79,   fat:0.7 } },
+  { name:'Vollkornreis (roh)',       cat:'getreide',emoji:'🍚', serving:80,  per100g:{ kcal:362, protein:8,   carbs:76,   fat:2.7 } },
+  { name:'Quinoa (roh)',             cat:'getreide',emoji:'🌾', serving:80,  per100g:{ kcal:368, protein:14,  carbs:64,   fat:6   } },
+  { name:'Quinoa (gekocht)',         cat:'getreide',emoji:'🌾', serving:200, per100g:{ kcal:120, protein:4.4, carbs:22,   fat:2   } },
+  { name:'Couscous (roh)',           cat:'getreide',emoji:'🌾', serving:80,  per100g:{ kcal:376, protein:13,  carbs:72,   fat:1.7 } },
+  { name:'Couscous (gekocht)',       cat:'getreide',emoji:'🌾', serving:200, per100g:{ kcal:112, protein:3.8, carbs:23,   fat:0.2 } },
+  { name:'Hirse (roh)',              cat:'getreide',emoji:'🌾', serving:80,  per100g:{ kcal:378, protein:11,  carbs:72,   fat:4   } },
+  { name:'Buchweizen (roh)',         cat:'getreide',emoji:'🌾', serving:80,  per100g:{ kcal:343, protein:13,  carbs:72,   fat:3.4 } },
+  { name:'Bulgur (roh)',             cat:'getreide',emoji:'🌾', serving:80,  per100g:{ kcal:342, protein:12,  carbs:68,   fat:1.3 } },
+  { name:'Pasta (roh)',              cat:'getreide',emoji:'🍝', serving:80,  per100g:{ kcal:356, protein:12,  carbs:70,   fat:1.5 } },
+  { name:'Vollkornpasta (roh)',      cat:'getreide',emoji:'🍝', serving:80,  per100g:{ kcal:342, protein:13,  carbs:65,   fat:2.5 } },
+  { name:'Kartoffel',                cat:'getreide',emoji:'🥔', serving:200, per100g:{ kcal:77,  protein:2,   carbs:17,   fat:0.1 }, unit:{label:'Kartoffel',plural:'Kartoffeln',g:120} },
+  { name:'Süßkartoffel',             cat:'getreide',emoji:'🍠', serving:200, per100g:{ kcal:86,  protein:1.6, carbs:20,   fat:0.1 }, unit:{label:'Süßkartoffel',plural:'Süßkartoffeln',g:130} },
+  { name:'Toastbrot',                cat:'getreide',emoji:'🍞', serving:30,  per100g:{ kcal:265, protein:8,   carbs:50,   fat:3   }, unit:{label:'Scheibe',plural:'Scheiben',g:30} },
+  { name:'Vollkornbrot',             cat:'getreide',emoji:'🍞', serving:50,  per100g:{ kcal:247, protein:9,   carbs:43,   fat:3.3 }, unit:{label:'Scheibe',plural:'Scheiben',g:45} },
+  { name:'Pumpernickel',             cat:'getreide',emoji:'🍞', serving:50,  per100g:{ kcal:218, protein:6.4, carbs:44,   fat:1.2 }, unit:{label:'Scheibe',plural:'Scheiben',g:50} },
+  { name:'Bagel',                    cat:'getreide',emoji:'🥯', serving:100, per100g:{ kcal:250, protein:9.8, carbs:49,   fat:1.6 }, unit:{label:'Bagel',plural:'Bagels',g:100} },
+  { name:'Tortilla (Weizen)',        cat:'getreide',emoji:'🫓', serving:50,  per100g:{ kcal:306, protein:8,   carbs:53,   fat:7   }, unit:{label:'Tortilla',plural:'Tortillas',g:50} },
+  { name:'Cornflakes (natur)',       cat:'getreide',emoji:'🥣', serving:40,  per100g:{ kcal:357, protein:6.6, carbs:84,   fat:0.9 } },
+  { name:'Weizenmehl (Type 405)',    cat:'getreide',emoji:'🌾', serving:50,  per100g:{ kcal:347, protein:10,  carbs:72,   fat:1.2 } },
+  { name:'Dinkelmehl',               cat:'getreide',emoji:'🌾', serving:50,  per100g:{ kcal:335, protein:14,  carbs:61,   fat:2.5 } },
+
+  // ══════ HÜLSENFRÜCHTE ════════════════════════════
+  { name:'Linsen (roh)',             cat:'huelsen', emoji:'🫘', serving:80,  per100g:{ kcal:353, protein:25,  carbs:60,   fat:1.4 } },
+  { name:'Linsen (gekocht)',         cat:'huelsen', emoji:'🫘', serving:150, per100g:{ kcal:116, protein:9,   carbs:20,   fat:0.4 } },
+  { name:'Kichererbsen (roh)',       cat:'huelsen', emoji:'🫘', serving:80,  per100g:{ kcal:364, protein:19,  carbs:61,   fat:6   } },
+  { name:'Kichererbsen (gekocht)',   cat:'huelsen', emoji:'🫘', serving:150, per100g:{ kcal:164, protein:8.9, carbs:27,   fat:2.6 } },
+  { name:'Kidneybohnen (gekocht)',   cat:'huelsen', emoji:'🫘', serving:150, per100g:{ kcal:127, protein:8.7, carbs:23,   fat:0.5 } },
+  { name:'Schwarze Bohnen (gekocht)',cat:'huelsen', emoji:'🫘', serving:150, per100g:{ kcal:132, protein:8.9, carbs:24,   fat:0.5 } },
+  { name:'Weiße Bohnen (gekocht)',   cat:'huelsen', emoji:'🫘', serving:150, per100g:{ kcal:118, protein:7.7, carbs:22,   fat:0.3 } },
+  { name:'Edamame (gegart)',         cat:'huelsen', emoji:'🫘', serving:150, per100g:{ kcal:122, protein:11,  carbs:10,   fat:5   } },
+  { name:'Erbsen (TK, gegart)',      cat:'huelsen', emoji:'🫛', serving:150, per100g:{ kcal:72,  protein:5.5, carbs:12,   fat:0.4 } },
+  { name:'Hummus',                   cat:'huelsen', emoji:'🫘', serving:80,  per100g:{ kcal:166, protein:7.9, carbs:14,   fat:9.6 } },
+
+  // ══════ GEMÜSE ═══════════════════════════════════
+  { name:'Tomate',                   cat:'gemuese', emoji:'🍅', serving:120, per100g:{ kcal:18,  protein:0.9, carbs:3.5,  fat:0.2 }, unit:{label:'Tomate',plural:'Tomaten',g:80} },
+  { name:'Cherrytomaten',            cat:'gemuese', emoji:'🍅', serving:100, per100g:{ kcal:18,  protein:0.9, carbs:3.9,  fat:0.2 } },
+  { name:'Gurke',                    cat:'gemuese', emoji:'🥒', serving:100, per100g:{ kcal:16,  protein:0.7, carbs:3.6,  fat:0.1 } },
+  { name:'Brokkoli',                 cat:'gemuese', emoji:'🥦', serving:200, per100g:{ kcal:34,  protein:2.8, carbs:7,    fat:0.4 } },
+  { name:'Blumenkohl',               cat:'gemuese', emoji:'🥦', serving:200, per100g:{ kcal:25,  protein:1.9, carbs:5,    fat:0.3 } },
+  { name:'Rosenkohl',                cat:'gemuese', emoji:'🥦', serving:150, per100g:{ kcal:43,  protein:3.4, carbs:9,    fat:0.5 } },
+  { name:'Grünkohl',                 cat:'gemuese', emoji:'🥬', serving:100, per100g:{ kcal:49,  protein:4.3, carbs:9,    fat:0.9 } },
+  { name:'Spinat (roh)',             cat:'gemuese', emoji:'🌿', serving:100, per100g:{ kcal:23,  protein:2.9, carbs:3.6,  fat:0.4 } },
+  { name:'Rucola',                   cat:'gemuese', emoji:'🌿', serving:50,  per100g:{ kcal:25,  protein:2.6, carbs:3.7,  fat:0.7 } },
+  { name:'Kopfsalat / Eisberg',      cat:'gemuese', emoji:'🥬', serving:100, per100g:{ kcal:14,  protein:1.4, carbs:2.2,  fat:0.2 } },
+  { name:'Paprika (rot)',            cat:'gemuese', emoji:'🫑', serving:150, per100g:{ kcal:31,  protein:1,   carbs:6,    fat:0.3 }, unit:{label:'Paprika',plural:'Paprika',g:150} },
+  { name:'Paprika (gelb)',           cat:'gemuese', emoji:'🫑', serving:150, per100g:{ kcal:27,  protein:1,   carbs:6.3,  fat:0.2 }, unit:{label:'Paprika',plural:'Paprika',g:150} },
+  { name:'Champignons',              cat:'gemuese', emoji:'🍄', serving:100, per100g:{ kcal:22,  protein:3.1, carbs:3.3,  fat:0.3 } },
+  { name:'Austernpilze',             cat:'gemuese', emoji:'🍄', serving:100, per100g:{ kcal:33,  protein:3.3, carbs:6,    fat:0.4 } },
+  { name:'Zucchini',                 cat:'gemuese', emoji:'🥒', serving:200, per100g:{ kcal:17,  protein:1.2, carbs:3.1,  fat:0.3 }, unit:{label:'Zucchini',plural:'Zucchini',g:200} },
+  { name:'Aubergine',                cat:'gemuese', emoji:'🍆', serving:150, per100g:{ kcal:25,  protein:1,   carbs:6,    fat:0.2 } },
+  { name:'Karotte',                  cat:'gemuese', emoji:'🥕', serving:100, per100g:{ kcal:41,  protein:0.9, carbs:10,   fat:0.2 }, unit:{label:'Karotte',plural:'Karotten',g:60} },
+  { name:'Rote Bete',                cat:'gemuese', emoji:'🫚', serving:100, per100g:{ kcal:43,  protein:1.6, carbs:10,   fat:0.1 } },
+  { name:'Mais (Dose)',              cat:'gemuese', emoji:'🌽', serving:100, per100g:{ kcal:86,  protein:2.9, carbs:18,   fat:1.2 } },
+  { name:'Spargel (grün)',           cat:'gemuese', emoji:'🌿', serving:150, per100g:{ kcal:20,  protein:2.2, carbs:3.9,  fat:0.1 } },
+  { name:'Lauch',                    cat:'gemuese', emoji:'🌿', serving:100, per100g:{ kcal:26,  protein:1.5, carbs:6,    fat:0.3 } },
+  { name:'Staudensellerie',          cat:'gemuese', emoji:'🌿', serving:100, per100g:{ kcal:14,  protein:0.7, carbs:3,    fat:0.2 } },
+  { name:'Kürbis (Hokkaido)',        cat:'gemuese', emoji:'🎃', serving:200, per100g:{ kcal:40,  protein:1.5, carbs:9,    fat:0.1 } },
+  { name:'Zwiebel',                  cat:'gemuese', emoji:'🧅', serving:80,  per100g:{ kcal:40,  protein:1.1, carbs:9,    fat:0.1 }, unit:{label:'Zwiebel',plural:'Zwiebeln',g:80} },
+  { name:'Knoblauch',                cat:'gemuese', emoji:'🧄', serving:5,   per100g:{ kcal:149, protein:6.4, carbs:33,   fat:0.5 }, unit:{label:'Zehe',plural:'Zehen',g:5} },
+  { name:'Weißkohl',                 cat:'gemuese', emoji:'🥬', serving:150, per100g:{ kcal:25,  protein:1.3, carbs:5.8,  fat:0.1 } },
+  { name:'Rotkohl',                  cat:'gemuese', emoji:'🥬', serving:150, per100g:{ kcal:27,  protein:1.4, carbs:6.1,  fat:0.1 } },
+  { name:'Grüne Bohnen',             cat:'gemuese', emoji:'🫛', serving:150, per100g:{ kcal:31,  protein:1.8, carbs:7,    fat:0.1 } },
+
+  // ══════ OBST ═════════════════════════════════════
+  { name:'Banane',                   cat:'obst',    emoji:'🍌', serving:120, per100g:{ kcal:89,  protein:1.1, carbs:23,   fat:0.3 }, unit:{label:'Banane',plural:'Bananen',g:120} },
+  { name:'Apfel',                    cat:'obst',    emoji:'🍎', serving:150, per100g:{ kcal:52,  protein:0.3, carbs:14,   fat:0.2 }, unit:{label:'Apfel',plural:'Äpfel',g:150} },
+  { name:'Birne',                    cat:'obst',    emoji:'🍐', serving:150, per100g:{ kcal:57,  protein:0.4, carbs:15,   fat:0.1 }, unit:{label:'Birne',plural:'Birnen',g:150} },
+  { name:'Orange',                   cat:'obst',    emoji:'🍊', serving:150, per100g:{ kcal:47,  protein:0.9, carbs:12,   fat:0.1 }, unit:{label:'Orange',plural:'Orangen',g:150} },
+  { name:'Grapefruit',               cat:'obst',    emoji:'🍊', serving:150, per100g:{ kcal:42,  protein:0.8, carbs:11,   fat:0.1 } },
+  { name:'Kiwi',                     cat:'obst',    emoji:'🥝', serving:80,  per100g:{ kcal:61,  protein:1.1, carbs:15,   fat:0.5 }, unit:{label:'Kiwi',plural:'Kiwis',g:75} },
+  { name:'Mango',                    cat:'obst',    emoji:'🥭', serving:150, per100g:{ kcal:60,  protein:0.8, carbs:15,   fat:0.4 }, unit:{label:'Mango',plural:'Mangos',g:200} },
+  { name:'Ananas',                   cat:'obst',    emoji:'🍍', serving:150, per100g:{ kcal:50,  protein:0.5, carbs:13,   fat:0.1 } },
+  { name:'Wassermelone',             cat:'obst',    emoji:'🍉', serving:200, per100g:{ kcal:30,  protein:0.6, carbs:7.6,  fat:0.2 } },
+  { name:'Erdbeeren',                cat:'obst',    emoji:'🍓', serving:150, per100g:{ kcal:32,  protein:0.7, carbs:8,    fat:0.3 } },
+  { name:'Himbeeren',                cat:'obst',    emoji:'🫐', serving:100, per100g:{ kcal:52,  protein:1.2, carbs:12,   fat:0.7 } },
+  { name:'Blaubeeren',               cat:'obst',    emoji:'🫐', serving:100, per100g:{ kcal:57,  protein:0.7, carbs:14,   fat:0.3 } },
+  { name:'Brombeeren',               cat:'obst',    emoji:'🫐', serving:100, per100g:{ kcal:43,  protein:1.4, carbs:10,   fat:0.5 } },
+  { name:'Weintrauben',              cat:'obst',    emoji:'🍇', serving:150, per100g:{ kcal:69,  protein:0.7, carbs:18,   fat:0.2 } },
+  { name:'Kirsche',                  cat:'obst',    emoji:'🍒', serving:100, per100g:{ kcal:63,  protein:1.1, carbs:16,   fat:0.2 } },
+  { name:'Pfirsich',                 cat:'obst',    emoji:'🍑', serving:150, per100g:{ kcal:39,  protein:0.9, carbs:10,   fat:0.3 }, unit:{label:'Pfirsich',plural:'Pfirsiche',g:150} },
+  { name:'Datteln (getrocknet)',     cat:'obst',    emoji:'🫙', serving:30,  per100g:{ kcal:277, protein:1.8, carbs:75,   fat:0.2 }, unit:{label:'Dattel',plural:'Datteln',g:8} },
+
+  // ══════ FETTE & NÜSSE ════════════════════════════
+  { name:'Olivenöl',                 cat:'fette',   emoji:'🫒', serving:10,  per100g:{ kcal:884, protein:0,   carbs:0,    fat:100 }, unit:{label:'EL',plural:'EL',g:10} },
+  { name:'Kokosöl',                  cat:'fette',   emoji:'🥥', serving:10,  per100g:{ kcal:862, protein:0,   carbs:0,    fat:100 } },
+  { name:'Butter',                   cat:'fette',   emoji:'🧈', serving:10,  per100g:{ kcal:717, protein:0.9, carbs:0.1,  fat:81  } },
+  { name:'Avocado',                  cat:'fette',   emoji:'🥑', serving:100, per100g:{ kcal:160, protein:2,   carbs:9,    fat:15  }, unit:{label:'Avocado',plural:'Avocados',g:140} },
+  { name:'Mandeln',                  cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:579, protein:21,  carbs:22,   fat:50  } },
+  { name:'Walnüsse',                 cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:654, protein:15,  carbs:14,   fat:65  } },
+  { name:'Cashews',                  cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:553, protein:18,  carbs:30,   fat:44  } },
+  { name:'Haselnüsse',               cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:628, protein:15,  carbs:17,   fat:61  } },
+  { name:'Pistazien',                cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:562, protein:20,  carbs:28,   fat:45  } },
+  { name:'Erdnüsse (geröstet)',      cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:585, protein:26,  carbs:16,   fat:50  } },
+  { name:'Erdnussbutter (natur)',    cat:'fette',   emoji:'🥜', serving:30,  per100g:{ kcal:588, protein:25,  carbs:20,   fat:50  }, unit:{label:'EL',plural:'EL',g:16} },
+  { name:'Mandelmus',                cat:'fette',   emoji:'🥜', serving:20,  per100g:{ kcal:614, protein:21,  carbs:20,   fat:56  } },
+  { name:'Chiasamen',                cat:'fette',   emoji:'🌱', serving:15,  per100g:{ kcal:486, protein:17,  carbs:42,   fat:31  } },
+  { name:'Leinsamen',                cat:'fette',   emoji:'🌱', serving:15,  per100g:{ kcal:534, protein:18,  carbs:29,   fat:42  } },
+  { name:'Kürbiskerne',              cat:'fette',   emoji:'🌱', serving:30,  per100g:{ kcal:559, protein:30,  carbs:11,   fat:49  } },
+  { name:'Sonnenblumenkerne',        cat:'fette',   emoji:'🌱', serving:30,  per100g:{ kcal:584, protein:21,  carbs:20,   fat:51  } },
+  { name:'Sesam',                    cat:'fette',   emoji:'🌱', serving:10,  per100g:{ kcal:573, protein:17,  carbs:23,   fat:50  } },
+  { name:'Hanfsamen',                cat:'fette',   emoji:'🌱', serving:15,  per100g:{ kcal:553, protein:32,  carbs:9,    fat:49  } },
+  { name:'Kokosraspeln',             cat:'fette',   emoji:'🥥', serving:20,  per100g:{ kcal:354, protein:3.3, carbs:15,   fat:33  } },
+
+  // ══════ SONSTIGES ════════════════════════════════
+  { name:'Honig',                    cat:'sonstiges',emoji:'🍯', serving:15,  per100g:{ kcal:304, protein:0.3, carbs:82,   fat:0   }, unit:{label:'EL',plural:'EL',g:20} },
+  { name:'Tomatenmark (doppelt)',    cat:'sonstiges',emoji:'🍅', serving:20,  per100g:{ kcal:96,  protein:5,   carbs:18,   fat:0.5 } },
+  { name:'Passierte Tomaten',        cat:'sonstiges',emoji:'🍅', serving:200, per100g:{ kcal:32,  protein:1.6, carbs:6.4,  fat:0.3 } },
+  { name:'Sojasoße',                 cat:'sonstiges',emoji:'🫙', serving:15,  per100g:{ kcal:60,  protein:8,   carbs:5,    fat:0.1 } },
+  { name:'Ketchup',                  cat:'sonstiges',emoji:'🍅', serving:20,  per100g:{ kcal:101, protein:1.8, carbs:24,   fat:0.1 } },
+  { name:'Mayonnaise',               cat:'sonstiges',emoji:'🫙', serving:15,  per100g:{ kcal:680, protein:1.2, carbs:2,    fat:75  } },
+  { name:'Orangensaft (frisch)',     cat:'sonstiges',emoji:'🍊', serving:200, per100g:{ kcal:45,  protein:0.7, carbs:10,   fat:0.2 } },
+  { name:'Sahne (30% Fett)',         cat:'sonstiges',emoji:'🫙', serving:50,  per100g:{ kcal:292, protein:2.4, carbs:3.3,  fat:30  } },
+  { name:'Hafermilch',               cat:'sonstiges',emoji:'🥛', serving:250, per100g:{ kcal:46,  protein:1,   carbs:9,    fat:1   } },
+  { name:'Mandelmilch (ungesüßt)',   cat:'sonstiges',emoji:'🥛', serving:250, per100g:{ kcal:17,  protein:0.6, carbs:1.4,  fat:1.1 } },
+  { name:'Sojamilch (natur)',        cat:'sonstiges',emoji:'🥛', serving:250, per100g:{ kcal:40,  protein:3.6, carbs:2.5,  fat:2   } },
+  { name:'Dunkle Schokolade (85%)', cat:'sonstiges',emoji:'🍫', serving:20,  per100g:{ kcal:598, protein:8,   carbs:46,   fat:43  }, unit:{label:'Stück',plural:'Stück',g:5} },
+];

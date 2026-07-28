@@ -1,0 +1,27 @@
+/* === BASE === */
+@import url('./variables.css');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 96px;
+  background-image:
+    radial-gradient(ellipse 70% 45% at 50% -5%, rgba(139,92,246,.14) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 35% at 90% 110%, rgba(56,189,248,.07) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Mobile container */
+.app-container {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── SCROLLBAR ────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }

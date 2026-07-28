@@ -1,0 +1,40 @@
+/* === VARIABLES === */
+:root {
+  --bg: #070710;
+  --surface: rgba(255,255,255,0.04);
+  --surface-solid: #10101e;
+  --surface2: rgba(255,255,255,0.07);
+  --surface2-solid: #16162a;
+  --border: rgba(255,255,255,0.08);
+  --border-mid: rgba(255,255,255,0.13);
+  --text: #f0efff;
+  --muted: #7a7aa8;
+  --muted2: #9494b8;
+
+  --kcal: #ff5757;
+  --protein: #38bdf8;
+  --carbs: #34d399;
+  --fat: #fbbf24;
+
+  --accent: #8b5cf6;
+  --accent2: #6366f1;
+  --accent3: #3b82f6;
+  --accent-glow: rgba(139,92,246,0.45);
+  --accent-grad: linear-gradient(135deg,#8b5cf6 0%,#6366f1 55%,#3b82f6 100%);
+
+  --danger: #f43f5e;
+  --green: #10b981;
+
+  --r: 18px;
+  --r-sm: 12px;
+  --r-xs: 8px;
+
+  /* Desktop breakpoints */
+  --bp-tablet: 768px;
+  --bp-desktop: 1024px;
+  --bp-wide: 1440px;
+  
+  /* Desktop layout */
+  --sidebar-width: 280px;
+  --content-max: 640px;
+}
