@@ -1210,6 +1210,36 @@
   margin-bottom: 8px;
 }
 
+/* ── HYDRATION & FASTING MODULES ─────────────────────────────── */
+.hydration-module, .fasting-module { position:relative; isolation:isolate; min-height:248px; overflow:hidden; display:flex; flex-direction:column; }
+.hydration-module::before, .fasting-module::before { content:''; position:absolute; z-index:-1; width:180px; height:180px; border-radius:50%; filter:blur(4px); opacity:.42; pointer-events:none; }
+.hydration-module::before { top:-78px; right:-48px; background:radial-gradient(circle, rgba(98,186,221,.42), transparent 70%); animation:moduleFloat 8s ease-in-out infinite; }
+.fasting-module::before { bottom:-96px; left:-44px; background:radial-gradient(circle, rgba(234,164,78,.34), transparent 70%); animation:moduleFloat 9s ease-in-out infinite reverse; }
+.module-kicker { margin-bottom:3px; color:var(--accent); font:500 9px 'DM Mono',monospace; letter-spacing:.9px; }
+.module-statline { display:flex; align-items:center; justify-content:space-between; margin:5px 1px 8px; color:var(--muted); font-size:11px; }
+.module-statline b { color:var(--protein); font:500 17px 'DM Mono',monospace; }
+.water-progress-wrap { height:42px; margin-bottom:11px; background:rgba(94,181,213,.08); }
+.water-progress-bar { background:linear-gradient(90deg, #4daac9, #9ae0e2); box-shadow:0 0 22px rgba(115,217,223,.3); }
+.water-progress-text { display:flex; align-items:baseline; gap:3px; }
+.water-cups { display:flex; gap:5px; margin:0 1px 14px; }
+.water-cups i { display:block; height:6px; flex:1; border-radius:999px; background:rgba(255,255,255,.09); transition:background .45s ease, transform .45s cubic-bezier(.16,1,.3,1); }
+.water-cups i.filled { background:var(--protein); box-shadow:0 0 9px var(--protein-glow); transform:scaleY(1.25); }
+.hydration-module .water-quick-buttons { margin-top:auto; }
+.hydration-module .water-btn:first-child { border-color:rgba(143,198,178,.36); background:rgba(143,198,178,.09); }
+.fasting-module.is-active { border-color:rgba(232,168,79,.34); }
+.fasting-module.is-active .fasting-icon { animation:fastingPulse 2.4s ease-in-out infinite; }
+.fasting-idle-copy { margin:11px 0 14px; color:var(--muted); font-size:12.5px; line-height:1.55; }
+.fasting-plan-visual { display:flex; align-items:center; gap:8px; margin-bottom:13px; color:var(--text); font:500 13px 'DM Mono',monospace; }
+.fasting-plan-visual i { height:5px; flex:1; border-radius:999px; background:linear-gradient(90deg, #ecb66e 0 66%, rgba(255,255,255,.1) 66%); }
+.fasting-last-fast { margin:-3px 0 13px; color:var(--muted); font-size:11px; }
+.fasting-last-fast b { color:var(--fat); }
+.fasting-clock-time { font-family:'DM Mono',monospace; font-weight:500; }
+.fasting-progress-wrap { background:rgba(234,164,78,.07); }
+.fasting-progress-bar { background:linear-gradient(90deg, #e2a250, #e8795a); box-shadow:0 0 20px rgba(232,121,90,.28); }
+.fasting-phase-tag { max-width:100%; line-height:1.4; }
+@keyframes moduleFloat { 50% { transform:translate(-14px, 12px) scale(1.12); } }
+@keyframes fastingPulse { 50% { transform:scale(1.08); box-shadow:0 0 18px rgba(232,168,79,.35); } }
+
 /* Theme Picker Grid */
 .theme-grid {
   display: grid;

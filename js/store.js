@@ -43,6 +43,11 @@ function loadUserDB(id) {
         goals: { ...empty.goals, ...(parsed.goals || {}) },
         profile: parsed.profile || empty.profile,
         weights: (Array.isArray(parsed.weights) && parsed.weights.length > 0) ? parsed.weights : empty.weights,
+        water: parsed.water || {},
+        waterGoal: parsed.waterGoal || 2500,
+        fastingPlan: parsed.fastingPlan || '16:8',
+        fastingStart: parsed.fastingStart || null,
+        fastingHistory: Array.isArray(parsed.fastingHistory) ? parsed.fastingHistory : [],
       };
       if (!hasData) {
         save();

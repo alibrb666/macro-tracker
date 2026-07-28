@@ -101,14 +101,17 @@ function renderFastingWidget() {
   const planKey = getFastingPlan();
   const plan = FASTING_PLANS[planKey] || FASTING_PLANS['16:8'];
   const isFasting = !!db.fastingStart;
+  const history = db.fastingHistory || [];
+  const lastFast = history.length ? history[history.length - 1] : null;
 
   widget.innerHTML = `
+    <section class="fasting-card-box fasting-module ${isFasting ? 'is-active' : ''}" aria-label="Intervallfasten">
     <div class="fasting-header">
       <div style="display:flex;align-items:center;gap:10px">
         <div class="fasting-icon">⏱️</div>
         <div>
+          <div class="module-kicker">INTERVALLFASTEN</div>
           <div style="font-weight:800;font-size:15px;color:var(--text)">Intervallfasten</div>
-          <div style="font-size:12.5px;color:var(--muted)">Plan: ${plan.name}</div>
         </div>
       </div>
       <button class="btn-outline" onclick="openFastingModal()" style="font-size:12px;padding:6px 10px;border-radius:var(--r-xs)">⚙️ Plan</button>
@@ -128,11 +131,12 @@ function renderFastingWidget() {
       </div>
     ` : `
       <!-- Idle State: Start Fasting Button -->
-      <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5">
-        ${plan.desc}. Starte jetzt deinen Timer, um deine Fastenphase zu begleiten!
-      </div>
+      <div class="fasting-idle-copy">${plan.desc}</div>
+      <div class="fasting-plan-visual"><span>${plan.fastHours}h</span><i></i><span>${plan.eatHours}h</span></div>
+      ${lastFast ? `<div class="fasting-last-fast">Letztes Fasten: <b>${lastFast.hours.toLocaleString('de-DE')} h</b></div>` : ''}
       <button class="btn-primary" onclick="startFast()" style="width:100%">▶️ Fasten jetzt starten (${plan.fastHours}h)</button>
     `}
+    </section>
   `;
 
   if (isFasting) {

@@ -54,7 +54,7 @@ function renderToday() {
   const scoreKcal = Math.max(0, 35 - Math.abs(100 - pctKcal) * 0.35);
   const scoreProt = Math.min(35, (tot.protein / (g.protein || 1)) * 35);
   const scoreWat  = (pctWater / 100) * 20;
-  const scoreFast = (db.fasting && db.fasting.active) ? 10 : 5;
+  const scoreFast = db.fastingStart ? 10 : 5;
   const vitalityScore = Math.min(100, Math.round(scoreKcal + scoreProt + scoreWat + scoreFast));
 
   // Macro Ratio (% split of P / C / F)

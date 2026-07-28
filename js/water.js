@@ -21,13 +21,12 @@ function addWater(amountMl) {
   const updated = Math.max(0, current + amountMl);
   db.water[key] = updated;
   save();
-  renderWaterCard();
+  renderToday();
   showToast(`💧 ${amountMl > 0 ? '+' : ''}${amountMl} ml Wasser getrackt!`, 'success');
 }
 
 function addWaterQuick(amountMl) {
   addWater(amountMl);
-  renderToday();
 }
 
 function resetWater() {
@@ -35,7 +34,7 @@ function resetWater() {
   if (!db.water) db.water = {};
   db.water[key] = 0;
   save();
-  renderWaterCard();
+  renderToday();
   showToast('💧 Wasser-Tracker zurückgesetzt', 'warning');
 }
 
@@ -44,7 +43,7 @@ function setWaterTarget(ml) {
   if (isNaN(ml) || ml < 500) ml = 2500;
   db.waterGoal = ml;
   save();
-  renderWaterCard();
+  renderToday();
   showToast(`💧 Wasserziel auf ${ml} ml gesetzt!`, 'success');
 }
 
@@ -57,19 +56,22 @@ function renderWaterCard() {
   const pct = Math.min(100, Math.round((logged / target) * 100));
   const remaining = Math.max(0, target - logged);
 
+  const cups = Math.min(8, Math.ceil(target / 250));
+  const filledCups = Math.min(cups, Math.round(logged / target * cups));
   card.innerHTML = `
+    <section class="water-card-box hydration-module" aria-label="Wasser Tracker">
     <div class="water-card-header">
       <div style="display:flex;align-items:center;gap:10px">
         <div class="water-card-icon">💧</div>
         <div>
+          <div class="module-kicker">HYDRATION</div>
           <div style="font-weight:800;font-size:15px;color:var(--text)">Wasser-Tracker</div>
-          <div style="font-size:12.5px;color:var(--muted)">Ziel: ${target.toLocaleString('de-DE')} ml / Tag</div>
         </div>
       </div>
       <button class="btn-outline" onclick="openWaterGoalModal()" style="font-size:12px;padding:6px 10px;border-radius:var(--r-xs)">⚙️ Ziel</button>
     </div>
 
-    <!-- Animated Water Glass & Progress Bar -->
+    <div class="module-statline"><span>${remaining > 0 ? `${remaining.toLocaleString('de-DE')} ml offen` : 'Ziel erreicht ✦'}</span><b>${pct}%</b></div>
     <div class="water-progress-wrap">
       <div class="water-progress-bar" style="width: ${pct}%"></div>
       <div class="water-progress-text">
@@ -78,9 +80,7 @@ function renderWaterCard() {
       </div>
     </div>
 
-    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;text-align:center">
-      ${remaining > 0 ? `Noch <b style="color:var(--text)">${remaining.toLocaleString('de-DE')} ml</b> bis zum Tagesziel` : '🎉 Tagesziel erreicht! Weiter so!'}
-    </div>
+    <div class="water-cups" aria-label="${filledCups} von ${cups} Trinkportionen geschafft">${Array.from({ length: cups }, (_, i) => `<i class="${i < filledCups ? 'filled' : ''}"></i>`).join('')}</div>
 
     <!-- Quick Add Buttons -->
     <div class="water-quick-buttons">
@@ -97,6 +97,7 @@ function renderWaterCard() {
         <span>🔄</span>
       </button>
     </div>
+    </section>
   `;
 }
 
