@@ -34,12 +34,12 @@
       <button class="login-cloud-link" onclick="loginContinueOffline()" style="margin-top:14px">Ohne Konto fortfahren</button>
     </div>
 
-    <!-- View: Profil-Auswahl -->
+    <!-- View: Profil-Auswahl (Netflix Style) -->
     <div class="login-view" id="login-select" style="display:none">
-      <div class="login-heading">Wer bist du?</div>
-      <div class="login-sub">Wähle dein Profil aus</div>
+      <div class="login-heading">Wer nutzt die App?</div>
+      <div class="login-sub">Wähle dein Profil aus oder erstelle ein neues mit PIN</div>
       <div class="profile-grid" id="profile-grid"></div>
-      <button class="login-cloud-link" onclick="loginShowHome()">☁️ Anmelden / Konto verbinden</button>
+      <button class="login-cloud-link" id="login-select-cloud-btn" onclick="loginShowHome()">☁️ Anmelden / Konto verbinden</button>
     </div>
 
     <!-- View: Cloud-Anmeldung -->

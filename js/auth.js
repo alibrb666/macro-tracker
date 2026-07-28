@@ -33,10 +33,13 @@ function init() {
 function showLogin() {
   document.getElementById('login-screen').classList.remove('hidden');
   loadUsers();
-  // Hat das Gerät schon Profile → direkt zur Auswahl; sonst der Einstieg
-  // (Einloggen / Registrieren / ohne Konto).
-  if (users.length) loginShowSelect();
-  else loginShowHome();
+  // Netflix-Style: Wenn der User im Cloud-Konto eingeloggt ist -> Zeige Profil-Auswahl ("Wer schaut gerade?")
+  // Ansonsten -> Zeige E-Mail Login / Registrierung
+  if (cloudToken) {
+    loginShowSelect();
+  } else {
+    loginShowHome();
+  }
 }
 
 // Zeigt genau EINE Login-Ansicht, blendet die anderen aus.
@@ -62,13 +65,25 @@ function resolvePostLogin() {
   const pending = localStorage.getItem(PENDING_NAME_KEY);
   if (!users.length && pending) {
     localStorage.removeItem(PENDING_NAME_KEY);
-    const user = { id: uid(), name: pending.slice(0, 20) || 'Profil', emoji: AVATARS[0] };  // kein pinHash
+    const user = { id: uid(), name: pending.slice(0, 20) || 'Ali', emoji: AVATARS[0] };
     users.push(user);
     saveUsers();
     enterApp(user);
     return;
   }
-  if (users.length >= 1) { enterApp(users[0]); return; }
+  if (!users.length) {
+    const user = { id: 'user-ali', name: 'Ali', emoji: '🥗' };
+    users.push(user);
+    saveUsers();
+    enterApp(user);
+    return;
+  }
+  const sessionId = sessionStorage.getItem('mt-current');
+  if (sessionId && users.some(u => u.id === sessionId)) {
+    enterApp(users.find(u => u.id === sessionId));
+    return;
+  }
+  // Netflix-Style: Zeige Profil-Auswahl
   loginShowSelect();
 }
 
@@ -142,6 +157,17 @@ function loginRegStatus(msg, isErr) {
 function loginShowSelect() {
   loadUsers();
   showLoginView('login-select');
+
+  const cloudBtn = document.getElementById('login-select-cloud-btn');
+  if (cloudBtn) {
+    if (cloudToken) {
+      cloudBtn.innerHTML = `☁️ <span style="color:var(--text);font-weight:700">${esc(cloudEmail||'Konto')}</span> · <span style="color:var(--muted)">Abmelden</span>`;
+      cloudBtn.onclick = () => cloudSignOut();
+    } else {
+      cloudBtn.innerHTML = `☁️ Anmelden / Konto verbinden`;
+      cloudBtn.onclick = () => loginShowHome();
+    }
+  }
 
   const grid = document.getElementById('profile-grid');
   grid.innerHTML = users.map(u => `
