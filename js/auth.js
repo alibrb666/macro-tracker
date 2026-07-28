@@ -68,7 +68,7 @@ function resolvePostLogin() {
     enterApp(user);
     return;
   }
-  if (users.length === 1 && !users[0].pinHash) { enterApp(users[0]); return; }
+  if (users.length >= 1) { enterApp(users[0]); return; }
   loginShowSelect();
 }
 
