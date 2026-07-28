@@ -48,6 +48,7 @@ function renderLibrary(query = '') {
           <div class="library-protein-meter"><i style="width:${proteinWidth}%"></i></div>
           <div class="library-card-footer">${f.unit ? `1 ${esc(f.unit.label)} · ${f.unit.g} g` : 'Pro 100 g'}<span>Bearbeiten →</span></div>
         </div>
+        <span class="library-photo-action" role="button" tabindex="0" onclick="event.stopPropagation();openPhotoForFood('${f.id}')" aria-label="Foto für ${esc(f.name)} hinzufügen">${f.photo ? 'Foto ändern' : '+ Foto'}</span>
       </button>`;
   }).join('');
   container.querySelectorAll('.library-card').forEach(card => {
@@ -73,6 +74,11 @@ let libraryFilter = 'all';
 function setLibraryFilter(filter) {
   libraryFilter = filter;
   renderLibrary(document.getElementById('lib-search').value);
+}
+
+function openPhotoForFood(id) {
+  openFoodModal(id);
+  document.getElementById('file-input').click();
 }
 
 function openFoodModal(id) {

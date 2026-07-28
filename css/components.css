@@ -705,6 +705,9 @@
 .library-protein-meter i { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,var(--protein),#d7f2e8); box-shadow:0 0 10px var(--protein-glow); transition:width .8s cubic-bezier(.16,1,.3,1); }
 .library-card-footer span { color:var(--accent); opacity:0; transform:translateX(-4px); transition:all .25s ease; }
 .library-card:hover .library-card-footer span { opacity:1; transform:translateX(0); }
+.library-photo-action { position:absolute; top:10px; right:10px; z-index:3; border:1px solid rgba(255,255,255,.28); border-radius:999px; padding:6px 8px; background:rgba(12,14,15,.58); backdrop-filter:blur(10px); color:#fff; font:700 9px 'Plus Jakarta Sans',sans-serif; opacity:0; transform:translateY(-4px); transition:all .25s ease; }
+.library-card:hover .library-photo-action, .library-card:focus-visible .library-photo-action { opacity:1; transform:translateY(0); }
+.library-photo-action:hover { background:var(--accent); border-color:var(--accent); }
 .library-empty { grid-column:1 / -1; padding:34px 20px; border:1px dashed var(--border-light); border-radius:var(--r); text-align:center; color:var(--muted); background:rgba(255,255,255,.025); }
 .library-empty .icon { color:var(--accent); font:400 38px 'DM Mono',monospace; margin-bottom:8px; }
 .library-empty strong { display:block; color:var(--text); font-size:15px; }
@@ -713,6 +716,28 @@
 @keyframes libraryCardIn { from { opacity:0; transform:translateY(14px) scale(.96); } to { opacity:1; transform:translateY(0) scale(1); } }
 @media (min-width:768px) { .lib-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } .library-card { min-height:270px; } .library-card-image { height:112px; } }
 @media (min-width:1200px) { .lib-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media (hover:none) { .library-photo-action { opacity:1; transform:translateY(0); } }
+
+/* ── DYNAMIC SURFACE MOTION ───────────────────────────────────── */
+.btn-primary::before { content:''; position:absolute; inset:0; background:linear-gradient(110deg, transparent 25%, rgba(255,255,255,.25) 48%, transparent 70%); transform:translateX(-120%); transition:transform .6s ease; }
+.btn-primary:hover::before { transform:translateX(120%); }
+.btn-primary > *, .btn-primary { isolation:isolate; }
+.form-input, .wizard-input { transition:border-color .2s, background .2s, transform .2s, box-shadow .2s; }
+.form-input:focus, .wizard-input:focus { transform:translateY(-1px); box-shadow:0 8px 22px -16px var(--accent-glow); }
+.meal-section { background:linear-gradient(150deg, rgba(32,35,39,.98), rgba(18,20,23,.98)); border-color:rgba(255,255,255,.12); position:relative; overflow:hidden; animation:mealCardIn .5s both cubic-bezier(.16,1,.3,1); }
+.meal-section::before { content:''; position:absolute; inset:0 0 auto; height:2px; background:linear-gradient(90deg, transparent, var(--mc), transparent); opacity:.8; }
+.meal-section:nth-child(2) { animation-delay:.08s; }
+.meal-section:nth-child(3) { animation-delay:.16s; }
+.meal-section:hover { transform:translateY(-4px); background:linear-gradient(150deg, rgba(42,45,49,.98), rgba(22,24,28,.98)); }
+.meal-empty { margin:auto 0; border:1px dashed rgba(255,255,255,.13); border-radius:14px; background:rgba(255,255,255,.025); }
+.meal-log-item { background:rgba(255,255,255,.055); }
+.meal-log-item:active { transform:scale(.985); }
+@keyframes mealCardIn { from { opacity:0; transform:translateX(16px) scale(.97); } to { opacity:1; transform:translateX(0) scale(1); } }
+
+.goals-card, .needs-result, .profile-summary, .water-card, .fasting-widget, .weight-card { transition:transform .28s cubic-bezier(.16,1,.3,1), border-color .28s, box-shadow .28s; }
+.goals-card:hover, .needs-result:hover, .profile-summary:hover, .water-card:hover, .fasting-widget:hover, .weight-card:hover { transform:translateY(-3px); border-color:var(--border-highlight); box-shadow:var(--shadow-card); }
+.day-nav-arrow, .day-nav-current, .profile-chip { transition:transform .22s cubic-bezier(.16,1,.3,1), background .22s, border-color .22s; }
+.day-nav-arrow:hover, .day-nav-current:hover, .profile-chip:hover { transform:translateY(-2px); }
 
 /* ── COPY DAY BUTTON ──────────────────────────────────────────── */
 .copy-day-btn {
