@@ -43,6 +43,11 @@ function showTab(tab, btn) {
   if (tab === 'fasting') renderFastingPage();
 }
 
+function openSection(tab) {
+  const button = [...document.querySelectorAll('.nav-btn')].find(item => item.getAttribute('onclick').includes(`'${tab}'`));
+  if (button) showTab(tab, button);
+}
+
 function handleFab() {
   if (currentTab === 'library') openFoodModal('');
   else {

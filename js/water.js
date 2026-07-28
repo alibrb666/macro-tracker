@@ -20,6 +20,9 @@ function addWater(amountMl) {
   const current = db.water[key] || 0;
   const updated = Math.max(0, current + amountMl);
   db.water[key] = updated;
+  if (!db.waterEntries) db.waterEntries = {};
+  if (!db.waterEntries[key]) db.waterEntries[key] = [];
+  db.waterEntries[key].push({ amount: amountMl, at: new Date().toISOString() });
   save();
   renderToday();
   renderWaterPage();
@@ -34,6 +37,7 @@ function resetWater() {
   const key = viewKey();
   if (!db.water) db.water = {};
   db.water[key] = 0;
+  if (db.waterEntries) db.waterEntries[key] = [];
   save();
   renderToday();
   renderWaterPage();
@@ -104,8 +108,25 @@ function renderWaterModule(targetId) {
   `;
 }
 
-function renderWaterCard() { renderWaterModule('water-card'); }
-function renderWaterPage() { renderWaterModule('water-page-module'); }
+function renderWaterCard() {
+  const card = document.getElementById('water-card');
+  if (!card) return;
+  const target = getWaterTarget(), logged = getWaterLogged(), pct = Math.min(100, Math.round(logged / target * 100));
+  card.innerHTML = `<section class="water-card-box module-summary" aria-label="Wasser Übersicht">
+    <div class="module-summary-head"><span>💧 Wasser</span><button onclick="openSection('water')">Details ↗</button></div>
+    <div class="module-summary-value">${logged.toLocaleString('de-DE')}<small> / ${target.toLocaleString('de-DE')} ml</small></div>
+    <div class="module-summary-track water-summary-track"><i style="width:${pct}%"></i></div>
+    <div class="module-summary-bottom"><span>${pct}% deines Ziels</span><button class="module-quick-add" onclick="addWater(250)">+250 ml</button></div>
+  </section>`;
+}
+function renderWaterPage() {
+  renderWaterModule('water-page-module');
+  const page = document.getElementById('water-page-module');
+  if (!page) return;
+  const entries = ((db.waterEntries || {})[viewKey()] || []).slice().reverse();
+  const week = Array.from({ length: 7 }, (_, index) => { const d = new Date(); d.setDate(d.getDate() - (6 - index)); return { label:d.toLocaleDateString('de-DE',{weekday:'short'}), ml:getWaterLogged(dateKeyOf(d)) }; });
+  page.insertAdjacentHTML('beforeend', `<div class="module-detail-grid"><section class="module-detail-card"><span>7-Tage-Rhythmus</span><div class="water-week">${week.map(day => `<div><i style="height:${Math.max(8, Math.min(100, day.ml / getWaterTarget() * 100))}%"></i><b>${day.label}</b></div>`).join('')}</div></section><section class="module-detail-card"><span>Heute protokolliert</span><div class="water-entry-list">${entries.length ? entries.slice(0,6).map(entry => `<div><b>+${entry.amount} ml</b><span>${new Date(entry.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</span></div>`).join('') : '<p>Noch keine Trinkportion erfasst.</p>'}</div></section></div>`);
+}
 
 function openWaterGoalModal() {
   const current = getWaterTarget();

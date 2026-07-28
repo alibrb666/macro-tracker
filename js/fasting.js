@@ -90,6 +90,9 @@ function updateFastingClock() {
   document.querySelectorAll('[data-fasting-clock]').forEach(el => { el.textContent = time; });
   document.querySelectorAll('[data-fasting-progress]').forEach(el => { el.style.width = `${pct}%`; });
   document.querySelectorAll('[data-fasting-phase]').forEach(el => { el.innerHTML = `<span>${phase.icon}</span> <span><b>${phase.name}</b> · ${phase.desc}</span>`; });
+  document.querySelectorAll('[data-fasting-summary]').forEach(el => { el.textContent = `${hours}h ${mins}m`; });
+  document.querySelectorAll('[data-fasting-summary-progress]').forEach(el => { el.style.width = `${pct}%`; });
+  document.querySelectorAll('[data-fasting-summary-pct]').forEach(el => { el.textContent = `${pct}% des Ziels`; });
 }
 
 function renderFastingWidget(targetId = 'fasting-widget') {
@@ -101,6 +104,13 @@ function renderFastingWidget(targetId = 'fasting-widget') {
   const isFasting = !!db.fastingStart;
   const history = db.fastingHistory || [];
   const lastFast = history.length ? history[history.length - 1] : null;
+
+  if (targetId === 'fasting-widget') {
+    const elapsed = isFasting ? Math.max(0, (Date.now() - new Date(db.fastingStart).getTime()) / 3600000) : 0;
+    const pct = Math.min(100, Math.round(elapsed / plan.fastHours * 100));
+    widget.innerHTML = `<section class="fasting-card-box module-summary ${isFasting ? 'is-active' : ''}" aria-label="Fasten Übersicht"><div class="module-summary-head"><span>⏱️ Fasten</span><button onclick="openSection('fasting')">Details ↗</button></div><div class="module-summary-value">${isFasting ? `<span data-fasting-summary>${Math.floor(elapsed)}h ${Math.round(elapsed % 1 * 60)}m</span>` : plan.name}<small>${isFasting ? ' Fasten läuft' : ' bereit zum Start'}</small></div><div class="module-summary-track fasting-summary-track"><i data-fasting-summary-progress style="width:${pct}%"></i></div><div class="module-summary-bottom"><span ${isFasting ? 'data-fasting-summary-pct' : ''}>${isFasting ? `${pct}% des Ziels` : `${plan.fastHours}h Fastenfenster`}</span><button class="module-quick-add" onclick="${isFasting ? 'stopFast()' : 'startFast()'}">${isFasting ? 'Beenden' : 'Starten'}</button></div></section>`;
+    return;
+  }
 
   widget.innerHTML = `
     <section class="fasting-card-box fasting-module ${isFasting ? 'is-active' : ''}" aria-label="Intervallfasten">
@@ -143,7 +153,14 @@ function renderFastingWidget(targetId = 'fasting-widget') {
   }
 }
 
-function renderFastingPage() { renderFastingWidget('fasting-page-module'); }
+function renderFastingPage() {
+  renderFastingWidget('fasting-page-module');
+  const page = document.getElementById('fasting-page-module');
+  if (!page) return;
+  const history = (db.fastingHistory || []).slice().reverse();
+  const totalHours = history.reduce((sum, fast) => sum + fast.hours, 0);
+  page.insertAdjacentHTML('beforeend', `<div class="module-detail-grid fasting-details"><section class="module-detail-card"><span>Deine Statistik</span><div class="fasting-stat-grid"><div><b>${history.length}</b><small>Fasten</small></div><div><b>${Math.round(totalHours)}</b><small>Stunden</small></div><div><b>${history.length ? Math.round(totalHours / history.length * 10) / 10 : 0}</b><small>Ø Stunden</small></div></div></section><section class="module-detail-card"><span>Letzte Fasten</span><div class="fasting-history-list">${history.length ? history.slice(0,5).map(fast => `<div><b>${fast.hours.toLocaleString('de-DE')} h</b><span>${FASTING_PLANS[fast.plan]?.name || fast.plan} · ${new Date(fast.end).toLocaleDateString('de-DE',{day:'2-digit',month:'short'})}</span></div>`).join('') : '<p>Dein Fastenverlauf erscheint nach dem ersten abgeschlossenen Fasten.</p>'}</div></section></div>`);
+}
 
 function openFastingModal() {
   openModal('modal-fasting-plan');

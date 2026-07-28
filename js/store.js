@@ -45,6 +45,7 @@ function loadUserDB(id) {
         weights: (Array.isArray(parsed.weights) && parsed.weights.length > 0) ? parsed.weights : empty.weights,
         water: parsed.water || {},
         waterGoal: parsed.waterGoal || 2500,
+        waterEntries: parsed.waterEntries || {},
         fastingPlan: parsed.fastingPlan || '16:8',
         fastingStart: parsed.fastingStart || null,
         fastingHistory: Array.isArray(parsed.fastingHistory) ? parsed.fastingHistory : [],
