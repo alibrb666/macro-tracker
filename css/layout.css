@@ -111,12 +111,18 @@
 
 /* ── DESKTOP LAYOUT ──────────────────────────────────── */
 @media (min-width: 768px) {
+  :root {
+    /* Tablets behalten genug Breite für den eigentlichen Seiteninhalt. */
+    --sidebar-width: 84px;
+  }
+
   body {
     padding-bottom: 0;
   }
   
   .app-shell {
-    display: flex;
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
     min-height: 100vh;
   }
   
@@ -136,15 +142,18 @@
     padding: 28px 16px;
     gap: 8px;
     z-index: 100;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   
   .nav::before {
-    content: 'MT  /  MACRO TRACKER';
+    content: 'MT';
     display: block;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 900;
-    letter-spacing: 1.4px;
-    padding: 0 8px 24px;
+    letter-spacing: 1px;
+    text-align: center;
+    padding: 0 0 20px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 8px;
   }
@@ -152,11 +161,11 @@
   .nav-btn {
     flex: none;
     flex-direction: row;
-    padding: 12px 16px;
+    justify-content: center;
+    padding: 12px;
     border-radius: var(--r-sm);
-    font-size: 14px;
-    gap: 12px;
-    justify-content: flex-start;
+    font-size: 0;
+    gap: 0;
   }
   
   .nav-btn.active {
@@ -179,9 +188,11 @@
   
   /* Main content area */
   .app-container {
-    margin-left: var(--sidebar-width);
+    grid-column: 2;
+    min-width: 0;
+    margin-left: 0;
     max-width: none;
-    width: calc(100% - var(--sidebar-width));
+    width: 100%;
     display: flex;
     justify-content: center;
   }
@@ -205,6 +216,28 @@
   
   .login-inner {
     max-width: 420px;
+  }
+}
+
+/* Erst ab einer komfortablen Breite erhält die Navigation ihre Textlabels. */
+@media (min-width: 1024px) {
+  :root {
+    --sidebar-width: 280px;
+  }
+
+  .nav::before {
+    content: 'MT  /  MACRO TRACKER';
+    font-size: 12px;
+    letter-spacing: 1.4px;
+    text-align: left;
+    padding: 0 8px 24px;
+  }
+
+  .nav-btn {
+    justify-content: flex-start;
+    padding: 12px 16px;
+    font-size: 14px;
+    gap: 12px;
   }
 }
 
