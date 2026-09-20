@@ -2,35 +2,15 @@
 // Cloud Sync and Supabase Auth
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const CLOUD_DATA_TABLE = 'mt_cloud_data';
 
 let cloudToken     = null;
 let cloudEmail     = null;
 let cloudPushTimer = null;
 let cloudLastSync  = null;
 let cloudApplying  = false;
-let cloudPendingRemote = null;
 let cloudPostLoginDone = false;
-
-async function api(path, { method = 'GET', body, auth = false, timeoutMs = 30000 } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (auth) {
-    const { data } = await sb.auth.getSession();
-    const tok = data.session && data.session.access_token;
-    if (tok) headers['Authorization'] = 'Bearer ' + tok;
-  }
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    return await fetch(API_BASE + path, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-      signal: ctrl.signal,
-    });
-  } finally {
-    clearTimeout(timer);
-  }
-}
+let cloudSessionReady = null;
 
 function handleAuthExpired() {
   sb.auth.signOut();
@@ -40,14 +20,25 @@ function handleAuthExpired() {
 }
 
 function initCloud() {
-  sb.auth.onAuthStateChange((event, session) => {
-    cloudToken = session ? session.access_token : null;
-    cloudEmail = session ? (session.user.email || '') : null;
-    renderCloudUI();
-    if (event === 'SIGNED_OUT') { cloudPostLoginDone = false; return; }
-    if (session && event === 'INITIAL_SESSION') cloudPull({ silent: true });
-    if (session && event === 'SIGNED_IN')        handleSignedIn();
+  if (cloudSessionReady) return cloudSessionReady;
+  cloudSessionReady = new Promise(resolve => {
+    let resolved = false;
+    const finish = () => {
+      if (!resolved) { resolved = true; resolve(); }
+    };
+
+    sb.auth.onAuthStateChange((event, session) => {
+      cloudToken = session ? session.access_token : null;
+      cloudEmail = session ? (session.user.email || '') : null;
+      renderCloudUI();
+      if (event === 'INITIAL_SESSION') { finish(); return; }
+      if (event === 'SIGNED_OUT') { cloudPostLoginDone = false; return; }
+      if (session && event === 'SIGNED_IN') handleSignedIn();
+    });
+    // Fallback bei blockiertem Browser-Speicher oder einer gestörten Auth-Antwort.
+    setTimeout(finish, 2500);
   });
+  return cloudSessionReady;
 }
 
 async function handleSignedIn() {
@@ -57,7 +48,7 @@ async function handleSignedIn() {
   const onLogin = !loginScreen.classList.contains('hidden');
   try { await cloudAfterLogin(onLogin ? loginCloudStatus : setCloudStatus); } catch (e) {}
   if (loginScreen.classList.contains('hidden')) return;
-  if (!document.getElementById('modal-cloud-conflict').classList.contains('open')) resolvePostLogin();
+  resolvePostLogin();
 }
 
 function cloudSnapshot() {
@@ -108,10 +99,20 @@ window.addEventListener('beforeunload', () => {
   if (cloudPushTimer && cloudToken) {
     clearTimeout(cloudPushTimer);
     cloudPushTimer = null;
-    const snap = cloudSnapshot();
-    const blob = new Blob([JSON.stringify({ data: snap })], { type: 'application/json' });
-    navigator.sendBeacon(API_BASE + '/api/data', blob);
+    // Der normale Sync läuft nach jeder Änderung; dies startet ihn beim
+    // Schließen zusätzlich sofort. Supabase fügt die Sitzung automatisch hinzu.
+    cloudPush();
   }
+});
+
+// Beim Wechsel zurück in einen Browser-Tab den kanonischen Cloud-Stand laden.
+// Der Browser-LocalStorage ist nur ein Offline-Cache, nicht eine zweite Datenquelle.
+function refreshFromCloudWhenActive() {
+  if (cloudToken && !cloudApplying) cloudPull({ silent: true });
+}
+window.addEventListener('focus', refreshFromCloudWhenActive);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshFromCloudWhenActive();
 });
 
 function setCloudMarker(at) { if (at) localStorage.setItem('mt-cloud-synced-at', at); }
@@ -121,9 +122,15 @@ async function cloudPush() {
   setCloudStatus('Synchronisiere…');
   const snap = cloudSnapshot();
   try {
-    const res = await api('/api/data', { method: 'PUT', auth: true, body: { data: snap } });
-    if (res.status === 401 || res.status === 403) { handleAuthExpired(); return; }
-    if (!res.ok) { setCloudStatus('⚠️ Sync-Fehler (' + res.status + ')', true); return; }
+    const { data: sessionData } = await sb.auth.getSession();
+    const userId = sessionData.session && sessionData.session.user && sessionData.session.user.id;
+    if (!userId) { handleAuthExpired(); return; }
+    const { error } = await sb.from(CLOUD_DATA_TABLE).upsert({
+      user_id: userId,
+      data: snap,
+      updated_at: snap.savedAt,
+    }, { onConflict: 'user_id' });
+    if (error) { setCloudStatus('⚠️ Sync-Fehler: ' + error.message, true); return; }
     setCloudMarker(snap.savedAt);
     cloudLastSync = new Date();
     renderCloudUI();
@@ -135,11 +142,13 @@ async function cloudPush() {
 async function cloudPull(opts = {}) {
   if (!cloudToken) return null;
   try {
-    const res = await api('/api/data', { auth: true });
-    if (res.status === 401 || res.status === 403) { handleAuthExpired(); return null; }
-    if (!res.ok) { if (!opts.silent) setCloudStatus('⚠️ Fehler (' + res.status + ')', true); return null; }
-    const json = await res.json();
-    const remote = json && json.data ? json.data : null;
+    const { data: sessionData } = await sb.auth.getSession();
+    const userId = sessionData.session && sessionData.session.user && sessionData.session.user.id;
+    if (!userId) { handleAuthExpired(); return null; }
+    const { data: row, error } = await sb.from(CLOUD_DATA_TABLE)
+      .select('data, updated_at').eq('user_id', userId).maybeSingle();
+    if (error) { if (!opts.silent) setCloudStatus('⚠️ Cloud-Fehler: ' + error.message, true); return null; }
+    const remote = row && row.data ? row.data : null;
     if (!remote) { await cloudPush(); return null; }
     const remoteAt = remote.savedAt;
     if (opts.silent && remoteAt && remoteAt === localStorage.getItem('mt-cloud-synced-at')) return remote;
@@ -153,69 +162,12 @@ async function cloudPull(opts = {}) {
   }
 }
 
-function localHasData() {
-  return users.some(u => {
-    const raw = localStorage.getItem(dataKey(u.id));
-    if (!raw) return false;
-    try { const d = JSON.parse(raw); return (d.foods && d.foods.length) || (d.log && Object.keys(d.log).length); }
-    catch(e) { return false; }
-  });
-}
-
 async function cloudAfterLogin(status) {
   status = status || setCloudStatus;
   renderCloudUI();
-  let remote = null;
-  status('1/4 Hole Daten vom Server…');
-  const res = await api('/api/data', { auth: true, timeoutMs: 45000 });
-  if (res.status === 401 || res.status === 403) { handleAuthExpired(); return; }
-  if (res.ok) {
-    status('2/4 Empfange Daten…');
-    const txt = await res.text();
-    status('3/4 Verarbeite Daten… (' + Math.round(txt.length/1024) + ' KB)');
-    await new Promise(r => setTimeout(r, 40));
-    try {
-      const j = JSON.parse(txt);
-      remote = j && j.data ? j.data : null;
-    } catch (e) {
-      status('⚠️ Daten beschädigt (Parse): ' + (e && e.message || e), true);
-      return;
-    }
-  }
-  const hasRemote = remote && (((remote.users||[]).length) || (remote.profiles && Object.keys(remote.profiles).length));
-  if (!hasRemote) { status('Lade hoch…'); await cloudPush(); return; }
-  if (!localHasData()) {
-    status('4/4 Speichere lokal…');
-    await new Promise(r => setTimeout(r, 40));
-    try {
-      applyCloudSnapshot(remote);
-    } catch (e) {
-      status('⚠️ Speichern fehlgeschlagen: ' + (e && e.message || e) + ' (privates Fenster / Speicher voll?)', true);
-      return;
-    }
-    cloudLastSync = new Date(); renderCloudUI(); return;
-  }
-  cloudPendingRemote = remote;
-  const rProfiles = remote.profiles ? Object.keys(remote.profiles).length : 0;
-  const rDays = remote.profiles ? Object.values(remote.profiles).reduce((a,p)=>a+(p && p.log?Object.keys(p.log).length:0),0) : 0;
-  const lDays = users.reduce((a,u)=>{ try{const d=JSON.parse(localStorage.getItem(dataKey(u.id))||'{}');return a+(d.log?Object.keys(d.log).length:0);}catch(e){return a;} },0);
-  document.getElementById('cloud-conflict-info').innerHTML =
-    `☁️ <b style="color:var(--text)">Cloud:</b> ${rProfiles} Profil(e), ${rDays} getrackte Tage<br>` +
-    `📱 <b style="color:var(--text)">Dieses Gerät:</b> ${users.length} Profil(e), ${lDays} getrackte Tage`;
-  openModal('modal-cloud-conflict');
-}
-
-async function resolveCloudConflict(choice) {
-  closeModal('modal-cloud-conflict');
-  if (choice === 'download' && cloudPendingRemote) {
-    applyCloudSnapshot(cloudPendingRemote); cloudLastSync = new Date();
-  } else if (choice === 'upload') {
-    await cloudPush();
-  }
-  cloudPendingRemote = null;
-  renderCloudUI();
-  const loginScreen = document.getElementById('login-screen');
-  if (loginScreen && !loginScreen.classList.contains('hidden')) resolvePostLogin();
+  status('Hole Cloud-Daten…');
+  const remote = await cloudPull();
+  if (remote) status('✅ Cloud-Daten übernommen.');
 }
 
 async function doCloudAuth(mode, email, pw, status) {

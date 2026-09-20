@@ -256,7 +256,6 @@ const AVATARS    = ['🙂','💪','🏃','🥗','🔥','⭐','🦁','🐻','🦊
 
 const TOTAL_STEPS = 6;
 
-const API_BASE = 'https://macro-tracker-production-2915.up.railway.app';
 const SUPABASE_URL = 'https://pxeejfowdivavcqbigsc.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4ZWVqZm93ZGl2YXZjcWJpZ3NjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MTgzNzUsImV4cCI6MjA5NzM5NDM3NX0.af19l5t-EMvmuw-UyGP0yRNUJ5pRV7uqHe73fbDy1_g';
 const REDIRECT_URL = window.location.origin + window.location.pathname;

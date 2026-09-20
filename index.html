@@ -439,25 +439,6 @@
   </div>
 </div>
 
-<!-- ===== MODAL: Cloud-Konflikt ===== -->
-<div class="modal-overlay" id="modal-cloud-conflict" role="dialog" aria-modal="true" aria-label="Cloud-Konflikt">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title">☁️ Daten gefunden</span>
-      <button class="modal-close" onclick="closeModal('modal-cloud-conflict')" aria-label="Schließen">✕</button>
-    </div>
-    <p style="font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px">
-      In der Cloud sind bereits Daten gespeichert und auf diesem Gerät auch.
-      Was soll passieren? <b style="color:var(--text)">Die jeweils andere Seite wird überschrieben.</b>
-    </p>
-    <div id="cloud-conflict-info" style="font-size:12.5px;color:var(--muted);background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:16px;line-height:1.7"></div>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <button class="btn-primary" onclick="resolveCloudConflict('download')">☁️ → 📱 Cloud-Daten laden (lokale ersetzen)</button>
-      <button class="btn-outline" onclick="resolveCloudConflict('upload')">📱 → ☁️ Lokale Daten hochladen (Cloud ersetzen)</button>
-    </div>
-  </div>
-</div>
-
 <!-- ===== MODAL: Gewicht eintragen ===== -->
 <div class="modal-overlay" id="modal-weight" role="dialog" aria-modal="true" aria-label="Gewicht eintragen">
   <div class="modal">

@@ -9,16 +9,23 @@ let pinTarget    = null;   // Profil bei 'enter'
 let firstPin     = '';     // gemerkter PIN bei 'set' → 'confirm'
 let newProfile   = null;   // { name, emoji } während Erstellung
 
-function init() {
+async function init() {
   loadUsers();
-  initCloud();
   document.querySelectorAll('.modal-overlay').forEach(o =>
     o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); })
   );
   document.getElementById('lib-search').addEventListener('input', e => renderLibrary(e.target.value));
 
+  // Erst die gespeicherte Supabase-Sitzung abwarten. Ohne diese Wartezeit
+  // wurde bei jedem neuen Browser voreilig ein lokales Standardprofil erzeugt.
+  await initCloud();
+
   const sessionId = sessionStorage.getItem('mt-current');
-  if (sessionId && users.some(u => u.id === sessionId)) {
+  if (cloudToken) {
+    // Ein angemeldetes Cloud-Konto ist die gemeinsame Quelle für alle Browser.
+    await cloudAfterLogin(loginCloudStatus);
+    resolvePostLogin();
+  } else if (sessionId && users.some(u => u.id === sessionId)) {
     enterApp(users.find(u => u.id === sessionId));
   } else if (!users.length) {
     const defaultUser = { id: 'user-ali', name: 'Ali', emoji: '🥗' };
