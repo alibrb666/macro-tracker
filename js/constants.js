@@ -29,9 +29,9 @@ const THEMES = {
 };
 
 const FASTING_PLANS = {
-  '16:8':  { name: '16:8 (Standard)', fastHours: 16, eatHours: 8,  desc: 'Beliebtester Plan für Fettabbau & Wohlbefinden' },
-  '18:6':  { name: '18:6 (Intensiv)', fastHours: 18, eatHours: 6,  desc: 'Erweiterte Autophagie & schnellere Fettverbrennung' },
-  '20:4':  { name: '20:4 (Warrior)', fastHours: 20, eatHours: 4,  desc: 'Krieger-Diät mit kurzem Essensfenster' },
+  '16:8':  { name: '16:8 (Standard)', fastHours: 16, eatHours: 8,  desc: 'Ein verbreiteter Rhythmus für den Alltag' },
+  '18:6':  { name: '18:6 (Intensiv)', fastHours: 18, eatHours: 6,  desc: 'Ein engeres Essensfenster für Erfahrene' },
+  '20:4':  { name: '20:4 (Warrior)', fastHours: 20, eatHours: 4,  desc: 'Sehr kurzes Essensfenster – nur wenn es gut zu dir passt' },
   '14:10': { name: '14:10 (Sanft)',   fastHours: 14, eatHours: 10, desc: 'Perfekt für Einsteiger & sanften Start' },
 };
 

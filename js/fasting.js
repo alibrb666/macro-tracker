@@ -61,10 +61,10 @@ function stopFastingTimer() {
 }
 
 function getFastingPhase(elapsedHours) {
-  if (elapsedHours < 4)  return { name: 'Verdauung & Nährstoffaufnahme', icon: '🍽️', desc: 'Blutzucker & Insulin steigen an' };
-  if (elapsedHours < 12) return { name: 'Blutzuckerspiegel fällt',        icon: '📉', desc: 'Insulin sinkt, Körper bereitet Fettverbrennung vor' };
-  if (elapsedHours < 16) return { name: '🔥 Fettverbrennung (Ketose)',    icon: '🔥', desc: 'Körper verbrennt primär Fett zur Energiegewinnung' };
-  return                        { name: '✨ Autophagie & Zellregeneration',icon: '✨', desc: 'Zellen reinigen und erneuern sich selbst' };
+  if (elapsedHours < 4)  return { name: 'Fasten gestartet', icon: '🍽️', desc: 'Dein Körper verdaut noch die letzte Mahlzeit.' };
+  if (elapsedHours < 12) return { name: 'Fasten läuft',     icon: '⏱️', desc: 'Trinke ausreichend und achte auf dein Wohlbefinden.' };
+  if (elapsedHours < 16) return { name: 'Längeres Fasten',  icon: '🌙', desc: 'Hunger kann in Wellen kommen und wieder abflauen.' };
+  return                        { name: 'Fastenziel erreicht', icon: '✨', desc: 'Beende dein Fasten, wenn es zu deinem Plan und Befinden passt.' };
 }
 
 function updateFastingClock() {
@@ -159,7 +159,22 @@ function renderFastingPage() {
   if (!page) return;
   const history = (db.fastingHistory || []).slice().reverse();
   const totalHours = history.reduce((sum, fast) => sum + fast.hours, 0);
-  page.insertAdjacentHTML('beforeend', `<div class="module-detail-grid fasting-details"><section class="module-detail-card"><span>Deine Statistik</span><div class="fasting-stat-grid"><div><b>${history.length}</b><small>Fasten</small></div><div><b>${Math.round(totalHours)}</b><small>Stunden</small></div><div><b>${history.length ? Math.round(totalHours / history.length * 10) / 10 : 0}</b><small>Ø Stunden</small></div></div></section><section class="module-detail-card"><span>Letzte Fasten</span><div class="fasting-history-list">${history.length ? history.slice(0,5).map(fast => `<div><b>${fast.hours.toLocaleString('de-DE')} h</b><span>${FASTING_PLANS[fast.plan]?.name || fast.plan} · ${new Date(fast.end).toLocaleDateString('de-DE',{day:'2-digit',month:'short'})}</span></div>`).join('') : '<p>Dein Fastenverlauf erscheint nach dem ersten abgeschlossenen Fasten.</p>'}</div></section></div>`);
+  page.insertAdjacentHTML('beforeend', `<div class="module-detail-grid fasting-details"><section class="module-detail-card"><span>Deine Statistik</span><div class="fasting-stat-grid"><div><b>${history.length}</b><small>Fasten</small></div><div><b>${Math.round(totalHours)}</b><small>Stunden</small></div><div><b>${history.length ? Math.round(totalHours / history.length * 10) / 10 : 0}</b><small>Ø Stunden</small></div></div></section><section class="module-detail-card"><span>Letzte Fasten</span><div class="fasting-history-list">${history.length ? history.slice(0,5).map(fast => `<div><b>${fast.hours.toLocaleString('de-DE')} h</b><span>${FASTING_PLANS[fast.plan]?.name || fast.plan} · ${new Date(fast.end).toLocaleDateString('de-DE',{day:'2-digit',month:'short'})}</span></div>`).join('') : '<p>Dein Fastenverlauf erscheint nach dem ersten abgeschlossenen Fasten.</p>'}</div></section></div>${renderFastingGuide()}`);
+}
+
+function renderFastingGuide() {
+  return `<section class="fasting-guide" aria-labelledby="fasting-guide-title">
+    <div class="fasting-guide-heading"><div><span class="module-kicker">HILFE & WISSEN</span><h2 id="fasting-guide-title">Fasten einfach erklärt</h2></div><span aria-hidden="true">💡</span></div>
+    <p class="fasting-guide-intro">Intervallfasten beschreibt einen Essensrhythmus: Du wechselst zwischen einem Essensfenster und einer Fastenzeit. Es ist keine Pflicht und kein Ersatz für eine ausgewogene Ernährung.</p>
+    <div class="fasting-guide-steps">
+      <article><b>1. Sanft starten</b><span>Wähle zum Einstieg 14:10. Wenn es sich gut anfühlt, kannst du später 16:8 ausprobieren.</span></article>
+      <article><b>2. Fastenzeit</b><span>Wasser, ungesüßter Tee und schwarzer Kaffee passen für viele Menschen in die Fastenzeit.</span></article>
+      <article><b>3. Essensfenster</b><span>Iss ausreichend, ausgewogen und proteinreich – Fasten soll kein Anlass sein, Mahlzeiten zwanghaft auszulassen.</span></article>
+    </div>
+    <details class="fasting-guide-details"><summary>Welcher Plan passt zu mir?</summary><p><b>14:10</b> ist ein leichter Einstieg. <b>16:8</b> ist ein verbreiteter Alltagsrhythmus. <b>18:6 und 20:4</b> sind enger und nicht automatisch wirksamer. Entscheidend ist, was dauerhaft zu deinem Alltag und deinem Wohlbefinden passt.</p></details>
+    <details class="fasting-guide-details"><summary>Tipps für den Alltag</summary><p>Plane dein Essensfenster rund um Arbeit, Sport und soziale Termine. Trinke regelmäßig. Bei starkem Hunger, Schwindel, Zittern, Kopfschmerzen oder Unwohlsein: Fasten beenden, etwas essen und bei anhaltenden Beschwerden medizinischen Rat einholen.</p></details>
+    <aside class="fasting-guide-note"><b>Wichtig:</b> Nicht ohne ärztliche Rücksprache fasten bei Schwangerschaft oder Stillzeit, Essstörungen, Untergewicht, Diabetes bzw. blutzuckersenkenden Medikamenten oder einer Erkrankung. Diese Hilfe ist allgemeine Information und keine medizinische Beratung.</aside>
+  </section>`;
 }
 
 function openFastingModal() {
