@@ -169,13 +169,22 @@
   <div id="day-nav" class="day-nav"></div>
   <div id="today-hero"></div>
   <div id="suggestions-container"></div>
-  <button class="copy-day-btn" onclick="openCopyDay()" aria-label="Tag kopieren" style="margin-top: 16px;">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+  <button class="copy-day-btn" onclick="openCopyDay()" aria-label="Tag kopieren" style="margin-top:0;flex:1;min-width:220px">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <rect x="9" y="9" width="13" height="13" rx="2"/>
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
     </svg>
     Tag kopieren — Mahlzeiten von einem anderen Tag übernehmen
   </button>
+  <button class="copy-day-btn" onclick="exportDayData()" aria-label="Angezeigten Tag als JSON herunterladen" style="margin-top:0;flex:1;min-width:220px">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+    Diesen Tag als JSON herunterladen
+  </button>
+  </div>
 </div>
 
 <!-- ===== TAB: BIBLIOTHEK ===== -->
