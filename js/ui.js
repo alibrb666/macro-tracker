@@ -41,6 +41,7 @@ function showTab(tab, btn) {
   if (tab === 'bedarf')  renderBedarf();
   if (tab === 'water')   renderWaterPage();
   if (tab === 'fasting') renderFastingPage();
+  if (tab === 'workouts') renderWorkoutPage();
 }
 
 function openSection(tab) {
@@ -63,11 +64,21 @@ function uid() {
 
 function calcMacros(food, grams) {
   const f = grams / 100;
+  const nutrition = food.per100g || {};
   return {
-    kcal:    Math.round(food.per100g.kcal    * f),
-    protein: Math.round(food.per100g.protein * f * 10) / 10,
-    carbs:   Math.round(food.per100g.carbs   * f * 10) / 10,
-    fat:     Math.round(food.per100g.fat     * f * 10) / 10,
+    // The declared label energy remains the logged energy. Scientific energy
+    // is available separately for validation rather than overriding a label.
+    kcal:    Math.round((nutrition.kcal || 0) * f),
+    protein: Math.round((nutrition.protein || 0) * f * 10) / 10,
+    carbs:   Math.round((nutrition.carbs || 0) * f * 10) / 10,
+    fat:     Math.round((nutrition.fat || 0) * f * 10) / 10,
+    sugars: Math.round((nutrition.sugars || 0) * f * 10) / 10,
+    fiber: Math.round((nutrition.fiber || 0) * f * 10) / 10,
+    saturatedFat: Math.round((nutrition.saturatedFat || 0) * f * 10) / 10,
+    sodium: Math.round((nutrition.sodium || 0) * f * 100) / 100,
+    polyols: Math.round((nutrition.polyols || 0) * f * 10) / 10,
+    netCarbs: Math.round(netCarbs(nutrition) * f * 10) / 10,
+    scientificKcal: Math.round(scientificMacroCalories(nutrition) * f),
   };
 }
 

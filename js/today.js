@@ -40,11 +40,13 @@ function renderToday() {
     { kcal:0, protein:0, carbs:0, fat:0, fiber:0, sugar:0 }
   );
   const g = goalsForDate(viewKey());
+  const workoutBurn = typeof netWorkoutBurnForDate === 'function' ? netWorkoutBurnForDate(viewKey()) : 0;
+  const calorieGoal = g.kcal + workoutBurn;
 
   // ── Vitality Score & Macro Ratio Calculations ───────────
   const eaten     = Math.round(tot.kcal);
-  const remaining = g.kcal - eaten;
-  const pctKcal   = Math.min(100, Math.round(eaten / (g.kcal || 1) * 100));
+  const remaining = calorieGoal - eaten;
+  const pctKcal   = Math.min(100, Math.round(eaten / (calorieGoal || 1) * 100));
   const pctProtein= Math.min(100, Math.round((tot.protein || 0) / (g.protein || 1) * 100));
   const waterMl   = (db.water && db.water[viewKey()]) || 0;
   const waterGoal = (db.settings && db.settings.waterGoal) || 2500;
@@ -108,6 +110,7 @@ function renderToday() {
             <button class="quick-dock-btn" onclick="openLogModal('hauptspeise')" title="Mahlzeit loggen">🍽️ Loggen</button>
             <button class="quick-dock-btn" onclick="openWeightModal()" title="Gewicht eintragen">⚖️ Gewicht</button>
             <button class="quick-dock-btn" onclick="openFoodModal()" title="Foto-OCR Scan">📸 Foto-OCR</button>
+            <button class="quick-dock-btn" onclick="openSection('workouts')" title="Training loggen">🏋️ Training</button>
           </div>
         </div>
 
@@ -135,6 +138,7 @@ function renderToday() {
             <div class="hero-remaining-val ${isOver ? 'over' : ''}" style="font-size:24px;margin-bottom:4px;font-weight:900;">
               ${Math.abs(remaining)} <span style="font-size:13px;font-weight:600;color:var(--muted)">kcal</span>
             </div>
+            ${workoutBurn > 0 ? `<div style="font-size:10px;color:var(--green);font-weight:700;margin-bottom:4px">Training: +${Math.round(workoutBurn)} kcal netto · Ziel ${Math.round(calorieGoal)} kcal</div>` : ''}
             <!-- Macro Ratio Indicator -->
             <div style="font-size:10.5px;color:var(--muted);font-weight:800;letter-spacing:0.4px;">
               P <b style="color:var(--protein)">${rP}%</b> · C <b style="color:var(--carbs)">${rC}%</b> · F <b style="color:var(--fat)">${rF}%</b>

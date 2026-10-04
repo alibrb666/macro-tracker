@@ -147,6 +147,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
     Fasten
   </button>
+  <button class="nav-btn" onclick="showTab('workouts',this)" aria-label="Training">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7v10M18 7v10M3 9v6M21 9v6M6 12h12"/></svg>
+    Training
+  </button>
 </nav>
 
 <!-- ===== MAIN CONTENT ===== -->
@@ -280,6 +284,12 @@
   <div id="fasting-page-module" class="standalone-module"></div>
 </div>
 
+<!-- ===== TAB: TRAINING ===== -->
+<div id="tab-workouts" class="tab">
+  <div class="page-header"><div><h1 class="page-title">Training</h1><div class="page-subtitle">Netto-Verbrauch ohne doppelt gezählten Grundumsatz</div></div></div>
+  <div id="workout-page-module" class="standalone-module"></div>
+</div>
+
 </div><!-- /.app-container -->
 </div><!-- /.app-shell -->
 
@@ -337,6 +347,16 @@
         <div class="input-wrap"><input type="number" class="form-input" id="food-fat" placeholder="0"><span class="input-unit">g</span></div>
       </div>
     </div>
+    <div class="divider">Erweiterte Etikettwerte (optional)</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label" for="food-sugars">davon Zucker</label><div class="input-wrap"><input type="number" min="0" step="0.1" class="form-input" id="food-sugars"><span class="input-unit">g</span></div></div>
+      <div class="form-group"><label class="form-label" for="food-fiber">Ballaststoffe</label><div class="input-wrap"><input type="number" min="0" step="0.1" class="form-input" id="food-fiber"><span class="input-unit">g</span></div></div>
+      <div class="form-group"><label class="form-label" for="food-saturated-fat">davon gesättigt</label><div class="input-wrap"><input type="number" min="0" step="0.1" class="form-input" id="food-saturated-fat"><span class="input-unit">g</span></div></div>
+      <div class="form-group"><label class="form-label" for="food-sodium">Salz / Natrium</label><div class="input-wrap"><input type="number" min="0" step="0.01" class="form-input" id="food-sodium"><span class="input-unit">g</span></div></div>
+      <div class="form-group"><label class="form-label" for="food-polyols">Mehrwertige Alkohole</label><div class="input-wrap"><input type="number" min="0" step="0.1" class="form-input" id="food-polyols"><span class="input-unit">g</span></div></div>
+      <div class="form-group"><label class="form-label" for="food-brand">Marke</label><input type="text" class="form-input" id="food-brand"></div>
+    </div>
+    <div class="form-group" style="margin-top:12px"><label class="form-label" for="food-barcode">Barcode</label><input type="text" inputmode="numeric" class="form-input" id="food-barcode"></div>
     <div class="form-group" style="margin-top:14px;margin-bottom:14px">
       <label class="form-label" for="food-serving">Typische Portion</label>
       <div class="input-wrap">
@@ -691,9 +711,11 @@
 <script src="js/sync.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/calc.js"></script>
+<script src="js/nutrition.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/water.js"></script>
 <script src="js/fasting.js"></script>
+<script src="js/workouts.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/today.js"></script>
 <script src="js/library.js"></script>

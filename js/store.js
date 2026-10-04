@@ -6,7 +6,8 @@ let db = {
   log: {},
   goals: { kcal: 2000, protein: 150, carbs: 250, fat: 65 },
   profile: null,  // { gender, age, weight, height, activity, goal, delta, maintenance, diet }
-  weights: []     // [{ date: 'YYYY-MM-DD', kg: number }] — chronologisch, älteste zuerst
+  weights: [],    // [{ date: 'YYYY-MM-DD', kg: number }] — chronologisch, älteste zuerst
+  workouts: {}    // { 'YYYY-MM-DD': [WorkoutEntry] }
 };
 
 function hashPin(pin) {
@@ -49,6 +50,7 @@ function loadUserDB(id) {
         fastingPlan: parsed.fastingPlan || '16:8',
         fastingStart: parsed.fastingStart || null,
         fastingHistory: Array.isArray(parsed.fastingHistory) ? parsed.fastingHistory : [],
+        workouts: parsed.workouts || {},
       };
       if (!hasData) {
         save();

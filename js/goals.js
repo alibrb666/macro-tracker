@@ -40,6 +40,9 @@ function exportDayData() {
   const date = viewKey();
   const entries = db.log[date] || [];
   const targets = goalsForDate(date);
+  const workoutEntries = typeof workoutsForDate === 'function' ? workoutsForDate(date) : [];
+  const netWorkoutBurn = typeof netWorkoutBurnForDate === 'function' ? netWorkoutBurnForDate(date) : 0;
+  const adjustedKcalTarget = Number(targets.kcal || 0) + netWorkoutBurn;
   const totals = entries.reduce((sum, entry) => ({
     kcal: sum.kcal + Number(entry.kcal || 0),
     protein_g: sum.protein_g + Number(entry.protein || 0),
@@ -75,13 +78,14 @@ function exportDayData() {
       entries_count: entries.length,
       nutrition_targets: {
         kcal: Number(targets.kcal || 0),
+        kcal_with_net_workout_burn: adjustedKcalTarget,
         protein_g: Number(targets.protein || 0),
         carbs_g: Number(targets.carbs || 0),
         fat_g: Number(targets.fat || 0),
       },
       totals,
       remaining_to_target: {
-        kcal: Number(targets.kcal || 0) - totals.kcal,
+        kcal: adjustedKcalTarget - totals.kcal,
         protein_g: Number(targets.protein || 0) - totals.protein_g,
         carbs_g: Number(targets.carbs || 0) - totals.carbs_g,
         fat_g: Number(targets.fat || 0) - totals.fat_g,
@@ -89,6 +93,10 @@ function exportDayData() {
       // Flat list for analysis tools; the same entries are also grouped below.
       logged_food_entries: entries.map((entry, index) => dayExportEntry(entry, index + 1)),
       meals,
+      workouts: {
+        net_calories_burned: netWorkoutBurn,
+        entries: workoutEntries.map(entry => ({ ...entry })),
+      },
       hydration: {
         total_ml: Number((db.water || {})[date] || 0),
         target_ml: Number(getWaterTarget()),

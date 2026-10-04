@@ -248,7 +248,8 @@ const BACKUP_DB = {
     { date: "2026-06-28", kg: 110 },
     { date: "2026-07-21", kg: 108 },
     { date: "2026-07-27", kg: 106 }
-  ]
+  ],
+  workouts: {}
 };
 
 const EMPTY_DB   = () => JSON.parse(JSON.stringify(BACKUP_DB));

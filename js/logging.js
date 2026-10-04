@@ -216,7 +216,7 @@ function updatePreview() {
   if (!activeLogFood || !amount || amount <= 0) { preview.textContent = ''; return; }
   const isPiece = document.getElementById('log-unit-toggle').dataset.unit === 'piece';
   const macros = calcMacros(activeLogFood, isPiece ? amount * activeLogFood.unit.g : amount);
-  preview.textContent = `${macros.kcal} kcal · ${macros.protein} g Protein · ${macros.carbs} g KH · ${macros.fat} g Fett`;
+  preview.textContent = `${macros.kcal} kcal · ${macros.protein} g Protein · ${macros.carbs} g KH${macros.fiber || macros.polyols ? ` (${macros.netCarbs} g netto)` : ''} · ${macros.fat} g Fett`;
 }
 
 function logFood() {
@@ -268,7 +268,7 @@ function updateEditPreview() {
   if (!food || !amount) return;
   const piece = document.getElementById('edit-unit-toggle').dataset.unit === 'piece';
   const macros = calcMacros(food, piece ? amount * food.unit.g : amount);
-  document.getElementById('edit-macro-preview').textContent = `${macros.kcal} kcal · P ${macros.protein} g · C ${macros.carbs} g · F ${macros.fat} g`;
+  document.getElementById('edit-macro-preview').textContent = `${macros.kcal} kcal · P ${macros.protein} g · C ${macros.carbs} g${macros.fiber || macros.polyols ? ` (${macros.netCarbs} g netto)` : ''} · F ${macros.fat} g`;
 }
 
 function saveEditEntry() {

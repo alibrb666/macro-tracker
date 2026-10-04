@@ -462,6 +462,17 @@
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+/* ── WORKOUTS ─────────────────────────────────────────────────── */
+.workout-module { background: rgba(255,255,255,.035); border:1px solid var(--border); border-radius:var(--r); padding:18px; }
+.workout-summary { display:flex; justify-content:space-between; gap:12px; align-items:center; font-size:13px; color:var(--muted); margin-bottom:18px; }
+.workout-summary strong { color:var(--green); font-size:16px; }
+.workout-preview { margin:14px 0; padding:12px; border-radius:var(--r-sm); background:rgba(16,185,129,.08); color:var(--muted); font-size:12px; line-height:1.45; }
+.workout-list { display:flex; flex-direction:column; gap:8px; margin-top:18px; }
+.workout-row { display:flex; justify-content:space-between; gap:10px; padding:11px 0; border-top:1px solid var(--border); font-size:13px; }
+.workout-row b, .workout-row small { display:block; }
+.workout-row small, .workout-empty { color:var(--muted); font-size:11px; margin-top:3px; }
+.workout-delete { background:none; border:0; color:var(--danger); cursor:pointer; font-size:20px; line-height:12px; vertical-align:middle; }
+
 /* ── FOOD SELECT ──────────────────────────────────────────────── */
 .select-list { display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; }
 .select-item {

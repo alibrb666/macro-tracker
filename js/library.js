@@ -92,6 +92,13 @@ function openFoodModal(id) {
   document.getElementById('food-protein').value = f ? f.per100g.protein : '';
   document.getElementById('food-carbs').value   = f ? f.per100g.carbs : '';
   document.getElementById('food-fat').value     = f ? f.per100g.fat : '';
+  document.getElementById('food-sugars').value = f && f.per100g.sugars != null ? f.per100g.sugars : '';
+  document.getElementById('food-fiber').value = f && f.per100g.fiber != null ? f.per100g.fiber : '';
+  document.getElementById('food-saturated-fat').value = f && f.per100g.saturatedFat != null ? f.per100g.saturatedFat : '';
+  document.getElementById('food-sodium').value = f && f.per100g.sodium != null ? f.per100g.sodium : '';
+  document.getElementById('food-polyols').value = f && f.per100g.polyols != null ? f.per100g.polyols : '';
+  document.getElementById('food-brand').value = f && f.brand ? f.brand : '';
+  document.getElementById('food-barcode').value = f && f.barcode ? f.barcode : '';
   document.getElementById('food-serving').value = f ? f.servingSize : 100;
   document.getElementById('food-unit-label').value = f && f.unit ? f.unit.label : '';
   document.getElementById('food-unit-g').value = f && f.unit ? f.unit.g : '';
@@ -254,10 +261,22 @@ function saveFood() {
 
   const zone = document.getElementById('ocr-zone');
   const photo = zone && zone.dataset.photo ? zone.dataset.photo : null;
+  const per100g = {
+    kcal:k, protein:p, carbs:c, fat:f,
+    sugars: optionalNutritionField('food-sugars'),
+    fiber: optionalNutritionField('food-fiber'),
+    saturatedFat: optionalNutritionField('food-saturated-fat'),
+    sodium: optionalNutritionField('food-sodium'),
+    polyols: optionalNutritionField('food-polyols'),
+  };
+  const calorieCheck = validateNutritionCalories(per100g);
+  if (calorieCheck.isSuspicious && !confirm(`${calorieCheck.message}\n\nTrotzdem speichern?`)) return;
   const item = {
     id: editFoodId || uid(),
     name: n, photo,
-    per100g: { kcal:k, protein:p, carbs:c, fat:f },
+    brand: document.getElementById('food-brand').value.trim() || null,
+    barcode: document.getElementById('food-barcode').value.trim() || null,
+    per100g,
     servingSize: s,
     unit: unit
   };
