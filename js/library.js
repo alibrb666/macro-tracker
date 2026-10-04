@@ -73,6 +73,7 @@ let libraryFilter = 'all';
 let barcodeScanStream = null;
 let barcodeScanTimer = null;
 let barcodeFallbackScanner = null;
+let labelImageData = null;
 
 function setLibraryFilter(filter) {
   libraryFilter = filter;
@@ -81,7 +82,7 @@ function setLibraryFilter(filter) {
 
 function openPhotoForFood(id) {
   openFoodModal(id);
-  document.getElementById('file-input').click();
+  document.getElementById('product-file-input').click();
 }
 
 function openFoodModal(id) {
@@ -105,15 +106,22 @@ function openFoodModal(id) {
   document.getElementById('food-serving').value = f ? f.servingSize : 100;
   document.getElementById('food-unit-label').value = f && f.unit ? f.unit.label : '';
   document.getElementById('food-unit-g').value = f && f.unit ? f.unit.g : '';
-  document.getElementById('ocr-status').textContent = '';
+  const ocrStatus = document.getElementById('ocr-status');
+  ocrStatus.textContent = '';
+  ocrStatus.className = 'ocr-status';
+  labelImageData = null;
   setBarcodeStatus('');
   closeBarcodeScanner();
-  const zone = document.getElementById('ocr-zone');
+  const zone = document.getElementById('product-photo-zone');
   zone.dataset.photo = f && f.photo ? f.photo : '';
+  zone.classList.toggle('has-photo', Boolean(f && f.photo));
   zone.style.backgroundImage = f && f.photo
     ? `linear-gradient(rgba(15,16,18,.46), rgba(15,16,18,.46)), url(${f.photo})`
     : '';
-  document.getElementById('btn-ocr').disabled = !f?.photo;
+  const labelZone = document.getElementById('label-photo-zone');
+  labelZone.classList.remove('has-photo');
+  labelZone.style.backgroundImage = '';
+  document.getElementById('btn-ocr').disabled = true;
 
   openModal('modal-food');
 }
@@ -237,133 +245,154 @@ async function closeBarcodeScanner() {
   if (camera) camera.style.display = 'none';
 }
 
-function handlePhoto(event) {
-  const fileInput = event.target;
-  const file = fileInput.files[0];
-  if (!file) return;
-  try {
+function handlePhotoDragOver(event, zone) { event.preventDefault(); zone.classList.add('drag-over'); }
+function handlePhotoDragLeave(zone) { zone.classList.remove('drag-over'); }
+function handleProductPhotoDrop(event) { event.preventDefault(); handlePhotoDragLeave(event.currentTarget); loadProductPhoto(event.dataTransfer.files[0]); }
+function handleLabelPhotoDrop(event) { event.preventDefault(); handlePhotoDragLeave(event.currentTarget); loadLabelPhoto(event.dataTransfer.files[0]); }
+function handleProductPhoto(event) { loadProductPhoto(event.target.files[0]); event.target.value = ''; }
+function handleLabelPhoto(event) { loadLabelPhoto(event.target.files[0]); event.target.value = ''; }
+
+function readImageFile(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !file.type.startsWith('image/')) return reject(new Error('no-image'));
     const reader = new FileReader();
-    reader.onload = async e => {
-      const b64 = await resizeImage(e.target.result, 400); // 400px is enough for thumbnails
-      if (!b64) return;
-      const zone = document.getElementById('ocr-zone');
-      zone.dataset.photo = b64;
-      zone.style.backgroundImage = `linear-gradient(rgba(15,16,18,.46), rgba(15,16,18,.46)), url(${b64})`;
-      document.getElementById('btn-ocr').disabled = false;
-    };
+    reader.onload = event => resolve(event.target.result);
+    reader.onerror = reject;
     reader.readAsDataURL(file);
-  } catch (err) {}
+  });
+}
+
+async function loadProductPhoto(file) {
+  try {
+    const dataUrl = await readImageFile(file);
+    const photo = await resizeImage(dataUrl, 1200, 0.82);
+    if (!photo) throw new Error('resize');
+    const zone = document.getElementById('product-photo-zone');
+    zone.dataset.photo = photo;
+    zone.classList.add('has-photo');
+    zone.style.backgroundImage = `linear-gradient(rgba(15,16,18,.34), rgba(15,16,18,.34)), url(${photo})`;
+  } catch (error) { showToast('Bitte ein gültiges Produktfoto auswählen.', 'warning'); }
+}
+
+async function loadLabelPhoto(file) {
+  try {
+    const dataUrl = await readImageFile(file);
+    labelImageData = dataUrl;
+    const preview = await resizeImage(dataUrl, 1000, 0.86);
+    const zone = document.getElementById('label-photo-zone');
+    zone.classList.add('has-photo');
+    zone.style.backgroundImage = `linear-gradient(rgba(15,16,18,.34), rgba(15,16,18,.34)), url(${preview})`;
+    document.getElementById('btn-ocr').disabled = false;
+    setOcrStatus('Etikett bereit. Jetzt die automatische Erkennung starten.');
+  } catch (error) { setOcrStatus('Bitte ein gültiges Foto des Nährwertetiketts auswählen.', 'err'); }
+}
+
+function setOcrStatus(message, type = '') {
+  const status = document.getElementById('ocr-status');
+  status.textContent = message;
+  status.className = `ocr-status${message ? ' show' : ''}${type ? ` ${type}` : ''}`;
+}
+
+async function preprocessNutritionLabel(dataUrl, variant = 'contrast') {
+  const image = new Image();
+  image.src = dataUrl;
+  await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
+  const scale = Math.min(1, 1800 / Math.max(image.width, image.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(image.width * scale); canvas.height = Math.round(image.height * scale);
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < pixels.data.length; i += 4) {
+    const luminance = pixels.data[i] * .299 + pixels.data[i + 1] * .587 + pixels.data[i + 2] * .114;
+    const contrast = Math.max(0, Math.min(255, (luminance - 128) * 1.85 + 128));
+    const value = variant === 'threshold' ? (contrast > 158 ? 255 : 0) : contrast;
+    pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = value;
+  }
+  context.putImageData(pixels, 0, 0);
+  return canvas.toDataURL('image/jpeg', .92);
+}
+
+function nutritionExtractionScore(values, confidence = 0) {
+  const present = Object.values(values || {}).filter(value => value != null).length;
+  if (!values || present < 3) return -1000;
+  let score = present * 20 + confidence / 10;
+  const validGram = value => value == null || (value >= 0 && value <= 100);
+  if (![values.protein, values.carbs, values.fat, values.sugars, values.fiber, values.saturatedFat, values.polyols].every(validGram)) score -= 100;
+  if (values.sugars != null && values.carbs != null && values.sugars > values.carbs) score -= 45;
+  if (values.saturatedFat != null && values.fat != null && values.saturatedFat > values.fat) score -= 45;
+  if (values.kcal != null && values.kcal > 1000) score -= 80;
+  if (values.kcal != null && values.protein != null && values.carbs != null && values.fat != null) {
+    const energy = scientificMacroCalories(values);
+    score += Math.max(-35, 35 - Math.abs(values.kcal - energy));
+  }
+  return score;
 }
 
 async function runOCR() {
-  const input = document.getElementById('file-input');
-  if (!input.files || input.files.length === 0) return;
-  const file = input.files[0];
-  const statusEl = document.getElementById('ocr-status');
-  statusEl.textContent = 'Bild wird geladen...';
-
+  if (!labelImageData) { setOcrStatus('Bitte zuerst ein Foto des Nährwertetiketts auswählen.', 'err'); return; }
+  if (!window.Tesseract) { setOcrStatus('OCR-Engine konnte nicht geladen werden.', 'err'); return; }
   try {
-    const reader = new FileReader();
-    const dataUrl = await new Promise((res, rej) => {
-      reader.onload = e => res(e.target.result);
-      reader.onerror = rej;
-      reader.readAsDataURL(file);
-    });
-
-    // Optional: Pre-process image here (resize, contrast) if needed for Tesseract
-    const processedImgUrl = await resizeImage(dataUrl, 1000); // Resize for OCR
-    
-    if (!window.Tesseract) {
-      statusEl.textContent = 'Tesseract (OCR Engine) nicht geladen.';
-      return;
+    setOcrStatus('Etikett wird für die Erkennung optimiert …');
+    const variants = await Promise.all([
+      preprocessNutritionLabel(labelImageData, 'contrast'),
+      preprocessNutritionLabel(labelImageData, 'threshold'),
+    ]);
+    const candidates = [];
+    for (let index = 0; index < variants.length; index++) {
+      setOcrStatus(`Etikett wird gelesen (${index + 1}/${variants.length}) …`);
+      const result = await Tesseract.recognize(variants[index], 'deu+eng', {
+        tessedit_pageseg_mode: index === 0 ? '6' : '4', // tabular block / single column
+        preserve_interword_spaces: '1',
+        user_defined_dpi: '300',
+        logger: state => {
+          if (state.status === 'recognizing text') setOcrStatus(`Etikett wird gelesen (${index + 1}/${variants.length}) … ${Math.round(state.progress * 100)} %`);
+        },
+      });
+      const values = extractNutritionFromText(result.data.text);
+      candidates.push({ values, confidence: Number(result.data.confidence || 0) });
     }
-
-    statusEl.textContent = 'Analysiere Text...';
-    
-    const result = await Tesseract.recognize(
-      processedImgUrl,
-      'deu+eng', // German + English language models
-      {
-        logger: m => {
-          if (m.status === 'recognizing text') {
-            const p = Math.round(m.progress * 100);
-            statusEl.textContent = `Analysiere Text... ${p}%`;
-          } else {
-             statusEl.textContent = m.status;
-          }
-        }
-      }
-    );
-
-    statusEl.textContent = 'Extrahiere Nährwerte...';
-    
-    const text = result.data.text;
-    console.log("OCR Extracted Text:\n", text);
-
-    const values = extractNutritionFromText(text);
-    
-    if (values) {
-      if (values.kcal)    document.getElementById('food-kcal').value    = values.kcal;
-      if (values.protein) document.getElementById('food-protein').value = values.protein;
-      if (values.carbs)   document.getElementById('food-carbs').value   = values.carbs;
-      if (values.fat)     document.getElementById('food-fat').value     = values.fat;
-      statusEl.textContent = 'Nährwerte erfolgreich extrahiert!';
-    } else {
-       statusEl.textContent = 'Konnte keine Nährwerte im Text finden. Bitte manuell eingeben.';
-    }
+    const best = candidates.sort((a, b) => nutritionExtractionScore(b.values, b.confidence) - nutritionExtractionScore(a.values, a.confidence))[0];
+    const values = best && best.values;
+    if (!values) { setOcrStatus('Keine eindeutigen Nährwerte erkannt. Bitte Etikett gerade und scharf fotografieren.', 'err'); return; }
+    const fields = { kcal: 'food-kcal', protein: 'food-protein', carbs: 'food-carbs', fat: 'food-fat', sugars: 'food-sugars', fiber: 'food-fiber', saturatedFat: 'food-saturated-fat', sodium: 'food-sodium', polyols: 'food-polyols' };
+    Object.entries(fields).forEach(([key, id]) => { if (values[key] != null) document.getElementById(id).value = values[key]; });
+    const populated = Object.keys(fields).filter(key => values[key] != null).length;
+    const calorieCheck = validateNutritionCalories({ ...values, kcal: values.kcal || 0 });
+    const warning = calorieCheck.isSuspicious ? ' Die Kalorien passen nicht gut zu den Makros — Etikett unbedingt prüfen.' : '';
+    setOcrStatus(`${populated} Nährwerte erkannt (OCR-Konfidenz ${Math.round(best.confidence)} %) — bitte mit dem Etikett vergleichen.${warning}`, calorieCheck.isSuspicious ? 'err' : 'ok');
   } catch (error) {
-    console.error("OCR Error:", error);
-    statusEl.textContent = 'Fehler bei der Texterkennung.';
-  } finally {
-     input.value = ''; // Reset input
+    setOcrStatus('Die Texterkennung ist fehlgeschlagen. Bitte ein schärferes, gerade ausgerichtetes Etikett verwenden.', 'err');
   }
 }
 
 function extractNutritionFromText(text) {
-    // Normalisieren: Kleinbuchstaben, unnötige Leerzeichen entfernen, Kommas zu Punkten
-    let t = text.toLowerCase()
-        .replace(/\s+/g, ' ')
-        .replace(/,/g, '.')
-        .replace(/\|/g, 'I'); // "|" wird oft als "I" oder "1" erkannt
-
-    // Helfer für Regex: Sucht nach einem Keyword, evtl. Füllwörtern und dann einer Zahl
-    const findVal = (keywords, blockRegex = null) => {
-        for (const kw of keywords) {
-             // Regex: keyword -> evtl (pro 100g/ml) -> evtl Trennzeichen -> Zahl
-             const re = new RegExp(`${kw}.*?(\\d+(?:\\.\\d+)?)`, 'i');
-             const m = t.match(re);
-             if (m && parseFloat(m[1]) < 10000) return parseFloat(m[1]); // Sanity check (<10000)
-        }
-        return null;
-    };
-
-    // Energiewert (kcal) - oft "Energie", "Brennwert", "kcal"
-    // Suche spezifisch nach dem Wert vor/nach "kcal"
-    let kcal = null;
-    let kcalMatch = t.match(/(\d+(?:\.\d+)?)\s*kcal/);
-    if (kcalMatch) {
-       kcal = parseFloat(kcalMatch[1]);
-    } else {
-       kcalMatch = t.match(/(?:energie|brennwert).*?(\d+(?:\.\d+)?)\s*kcal/);
-       if (kcalMatch) kcal = parseFloat(kcalMatch[1]);
-    }
-
-    if (!kcal) kcal = findVal(['kcal', 'brennwert', 'energie']);
-
-    // Makros
-    const protein = findVal(['eiweiß', 'eiweiss', 'protein', 'protéines']);
-    const carbs   = findVal(['kohlenhydrate', 'carbohydrate', 'glucides']);
-    const fat     = findVal(['fett', 'fat', 'matières grasses', 'matieres grasses']);
-
-    if (kcal || protein || carbs || fat) {
-        return {
-            kcal: kcal || 0,
-            protein: protein || 0,
-            carbs: carbs || 0,
-            fat: fat || 0
-        };
+  const lines = String(text || '').toLowerCase().replace(/\r/g, '').split('\n')
+    .map(line => line.replace(/,/g, '.').replace(/[|]/g, '1').replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const readLineValue = (patterns, unit = 'g') => {
+    for (let index = 0; index < lines.length; index++) {
+      const line = `${lines[index]} ${lines[index + 1] || ''}`;
+      for (const pattern of patterns) {
+        const match = line.match(pattern);
+        if (!match) continue;
+        const tail = line.slice(match.index + match[0].length).replace(/pro\s*100\s*(g|ml)/, '');
+        const value = tail.match(new RegExp(`(\\d{1,4}(?:\\.\\d+)?)\\s*${unit}`));
+        if (value) return Number(value[1]);
+      }
     }
     return null;
+  };
+  const kcal = readLineValue([/energie|brennwert/, /kcal/], 'kcal') || (() => {
+    const match = lines.join(' ').match(/(\d{1,4}(?:\.\d+)?)\s*kcal/); return match ? Number(match[1]) : null;
+  })();
+  const values = {
+    kcal, protein: readLineValue([/eiwe[ií]ß|eiweiss|protein/]), carbs: readLineValue([/kohlenhydrate|carbohydrates?|glucides/]),
+    fat: readLineValue([/^(?!.*ges.ttigt).*\bfett\b/, /^(?!.*satur).*\bfat\b/]), sugars: readLineValue([/davon zucker|of which sugars?|zucker/]),
+    fiber: readLineValue([/ballaststoffe|fibre|fiber/]), saturatedFat: readLineValue([/ges.ttigte?.{0,20}fetts?äuren|satur(?:ated)?.{0,20}fat/]),
+    sodium: readLineValue([/salz|sodium|natrium/]), polyols: readLineValue([/mehrwertige alkohole|polyole|polyols/]),
+  };
+  const found = Object.values(values).filter(value => value != null).length;
+  return found >= 3 ? values : null;
 }
 
 function saveFood() {
@@ -383,7 +412,7 @@ function saveFood() {
     unit = { label: ul, plural: ul, g: ug };
   }
 
-  const zone = document.getElementById('ocr-zone');
+  const zone = document.getElementById('product-photo-zone');
   const photo = zone && zone.dataset.photo ? zone.dataset.photo : null;
   const per100g = {
     kcal:k, protein:p, carbs:c, fat:f,

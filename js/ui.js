@@ -105,16 +105,18 @@ function unitCountLabel(count, label, plural) {
   return `${fmtNum(count)} ${esc(n)}`;
 }
 
-function resizeImage(dataUrl, max = 640) {
+// Product images remain detailed enough for packaging/labels while avoiding
+// unbounded base64 payloads in the existing local-storage + sync model.
+function resizeImage(dataUrl, max = 1200, quality = 0.82) {
   return new Promise(res => {
     const img = new Image();
     img.onload = () => {
       try {
-        const s = Math.min(1, max / img.width);
+        const s = Math.min(1, max / Math.max(img.width, img.height));
         const c = document.createElement('canvas');
         c.width = img.width * s; c.height = img.height * s;
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        res(c.toDataURL('image/jpeg', 0.62));
+        res(c.toDataURL('image/jpeg', quality));
       } catch (e) { res(null); }
     };
     img.onerror = () => res(null);   // korruptes/nicht dekodierbares Bild → nicht ewig hängen

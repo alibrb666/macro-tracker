@@ -317,18 +317,30 @@
       <button class="modal-close" onclick="closeModal('modal-food')" aria-label="Schließen">✕</button>
     </div>
 
-    <div class="ocr-zone" id="ocr-zone" onclick="document.getElementById('file-input').click()">
-      <div class="ocr-icon">📸</div>
-      <div style="font-size:14px;font-weight:600">Foto aufnehmen oder hochladen</div>
-      <div class="ocr-hint">Nährwertetikett fotografieren → KI erkennt Werte automatisch</div>
+    <div class="photo-section">
+      <div class="photo-section-title">1. Produktfoto <span>für deine Bibliothek</span></div>
+      <div class="product-photo-zone" id="product-photo-zone" onclick="document.getElementById('product-file-input').click()"
+           ondragover="handlePhotoDragOver(event, this)" ondragleave="handlePhotoDragLeave(this)" ondrop="handleProductPhotoDrop(event)">
+        <div class="ocr-icon">📸</div>
+        <div style="font-size:14px;font-weight:700">Produktfoto hochladen</div>
+        <div class="ocr-hint">Produktvorderseite hineinziehen, Datei wählen oder mit der Kamera aufnehmen.</div>
+      </div>
+      <input type="file" id="product-file-input" accept="image/*" capture="environment" style="display:none" onchange="handleProductPhoto(event)">
+      <button type="button" class="btn-outline photo-camera-btn" onclick="document.getElementById('product-file-input').click()">📷 Foto auswählen / Kamera öffnen</button>
     </div>
-    <input type="file" id="file-input" accept="image/*" capture="environment"
-           style="display:none" onchange="handlePhoto(event)">
 
-    <button class="btn-secondary" id="btn-ocr" onclick="runOCR()" disabled style="margin-bottom:4px">
-      🔍 Nährwerte automatisch erkennen
-    </button>
-    <div class="ocr-status" id="ocr-status"></div>
+    <div class="photo-section label-section">
+      <div class="photo-section-title">2. Nährwertetikett scannen <span>nur für OCR, wird nicht als Produktfoto gespeichert</span></div>
+      <div class="label-photo-zone" id="label-photo-zone" onclick="document.getElementById('label-file-input').click()"
+           ondragover="handlePhotoDragOver(event, this)" ondragleave="handlePhotoDragLeave(this)" ondrop="handleLabelPhotoDrop(event)">
+        <div class="ocr-icon">🔎</div>
+        <div style="font-size:14px;font-weight:700">Etikett fotografieren oder hochladen</div>
+        <div class="ocr-hint">Nur die Nährwerttabelle möglichst gerade, scharf und bei gutem Licht aufnehmen.</div>
+      </div>
+      <input type="file" id="label-file-input" accept="image/*" capture="environment" style="display:none" onchange="handleLabelPhoto(event)">
+      <button class="btn-secondary" id="btn-ocr" type="button" onclick="runOCR()" disabled>🔍 Nährwerte aus Etikett erkennen</button>
+      <div class="ocr-status" id="ocr-status"></div>
+    </div>
     <div class="divider">Nährwerte eingeben / korrigieren</div>
 
     <div class="form-group" style="margin-bottom:12px">
