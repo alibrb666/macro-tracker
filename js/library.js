@@ -72,6 +72,7 @@ let editFoodId = null;
 let libraryFilter = 'all';
 let barcodeScanStream = null;
 let barcodeScanTimer = null;
+let barcodeFallbackScanner = null;
 
 function setLibraryFilter(filter) {
   libraryFilter = filter;
@@ -163,10 +164,11 @@ async function lookupBarcode(code) {
 function lookupBarcodeFromField() { lookupBarcode(document.getElementById('food-barcode').value); }
 
 async function openBarcodeScanner() {
-  if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    setBarcodeStatus('Kamera-Scan wird von diesem Browser nicht unterstützt. Bitte Barcode eingeben und „Suchen“ wählen.', 'err');
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setBarcodeStatus('Kamera-Zugriff wird von diesem Browser nicht unterstützt. Bitte Barcode eingeben und „Suchen“ wählen.', 'err');
     return;
   }
+  if (!('BarcodeDetector' in window)) return openFallbackBarcodeScanner();
   try {
     const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] });
     barcodeScanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
@@ -183,18 +185,54 @@ async function openBarcodeScanner() {
       } catch (error) { /* continue scanning while the camera frame is changing */ }
     }, 400);
   } catch (error) {
-    closeBarcodeScanner();
+    await closeBarcodeScanner();
+    if (window.Html5Qrcode) return openFallbackBarcodeScanner();
     setBarcodeStatus('Kamera konnte nicht geöffnet werden. Bitte Berechtigung erlauben oder Barcode manuell eingeben.', 'err');
   }
 }
 
-function closeBarcodeScanner() {
+async function openFallbackBarcodeScanner() {
+  if (!window.Html5Qrcode || !window.Html5QrcodeSupportedFormats) {
+    setBarcodeStatus('Scanner-Fallback konnte nicht geladen werden. Bitte Barcode eingeben und „Suchen“ wählen.', 'err');
+    return;
+  }
+  try {
+    const camera = document.getElementById('barcode-camera');
+    const video = document.getElementById('barcode-video');
+    const reader = document.getElementById('barcode-fallback-reader');
+    video.style.display = 'none';
+    reader.innerHTML = '';
+    camera.style.display = '';
+    barcodeFallbackScanner = new window.Html5Qrcode('barcode-fallback-reader', {
+      formatsToSupport: [window.Html5QrcodeSupportedFormats.EAN_13, window.Html5QrcodeSupportedFormats.EAN_8, window.Html5QrcodeSupportedFormats.UPC_A, window.Html5QrcodeSupportedFormats.UPC_E],
+    }, false);
+    await barcodeFallbackScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 280, height: 140 }, aspectRatio: 1.8 },
+      async decodedText => { await closeBarcodeScanner(); lookupBarcode(decodedText); },
+      () => {} // Decode failures are expected until a barcode enters the frame.
+    );
+    setBarcodeStatus('Barcode vor die Kamera halten …');
+  } catch (error) {
+    await closeBarcodeScanner();
+    setBarcodeStatus('Kamera konnte nicht geöffnet werden. Bitte Berechtigung erlauben oder Barcode manuell eingeben.', 'err');
+  }
+}
+
+async function closeBarcodeScanner() {
   if (barcodeScanTimer) clearInterval(barcodeScanTimer);
   barcodeScanTimer = null;
   if (barcodeScanStream) barcodeScanStream.getTracks().forEach(track => track.stop());
   barcodeScanStream = null;
+  if (barcodeFallbackScanner) {
+    try { await barcodeFallbackScanner.stop(); } catch (error) { /* scanner was not started yet */ }
+    try { await barcodeFallbackScanner.clear(); } catch (error) { /* scanner container may already be empty */ }
+    barcodeFallbackScanner = null;
+  }
   const video = document.getElementById('barcode-video');
-  if (video) video.srcObject = null;
+  if (video) { video.srcObject = null; video.style.display = ''; }
+  const reader = document.getElementById('barcode-fallback-reader');
+  if (reader) reader.innerHTML = '';
   const camera = document.getElementById('barcode-camera');
   if (camera) camera.style.display = 'none';
 }
