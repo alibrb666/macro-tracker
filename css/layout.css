@@ -71,9 +71,17 @@
 }
 
 @media (max-width: 767px) {
-  .nav { max-width: 620px; gap: 2px; padding: 7px 6px; }
-  .nav-btn { min-width: 0; padding: 9px 2px 7px; font-size: 8.5px; }
-  .nav-btn svg { width: 19px; height: 19px; }
+  /* A native-style tab bar: full-size touch targets, safe-area spacing, and
+     horizontal access to secondary modules instead of unreadably tiny labels. */
+  .nav { left:8px; right:8px; bottom:max(8px, env(safe-area-inset-bottom)); transform:none; width:auto; max-width:none; gap:4px; padding:7px 6px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; scrollbar-width:none; }
+  .nav::-webkit-scrollbar { display:none; }
+  .nav-btn { flex:0 0 66px; min-height:60px; padding:7px 3px 6px; font-size:9px; scroll-snap-align:center; }
+  .nav-btn svg { width:20px; height:20px; }
+  .nav-btn.active::after { top:-7px; }
+  .tab { padding:0 0 28px; }
+  .page-header { padding:calc(18px + env(safe-area-inset-top)) 2px 16px; align-items:flex-start; }
+  .page-title { font-size:30px; letter-spacing:-1.2px; }
+  .page-subtitle { font-size:12px; max-width:260px; }
 }
 
 /* ── TABS & PAGE HEADERS ─────────────────────────────────────── */
@@ -332,6 +340,22 @@
   border: none;
   box-shadow: none;
   backdrop-filter: none;
+}
+
+@media (max-width: 767px) {
+  .bento-dashboard { gap:9px; margin-top:10px; margin-bottom:18px; }
+  .bento-tile { border-radius:18px; padding:14px 12px; }
+  .bento-tile-banner { padding:14px; }
+  .bento-tile-hero { min-height:190px; padding:14px 8px; }
+  .bento-tile-macro { min-height:92px; }
+  .bento-macro-label { font-size:10px; letter-spacing:.45px; }
+  .bento-macro-pct { font-size:10px; padding:2px 6px; }
+  .bento-macro-val { font-size:20px; margin:3px 0 8px; }
+  .quick-dock { gap:8px; margin:0 -2px; }
+  .quick-dock-btn { flex:0 0 auto; min-width:102px; min-height:42px; padding:9px 10px; font-size:11px; border-radius:13px; }
+  .vitality-badge { width:42px; height:42px; font-size:17px; }
+  .vitality-info-title { font-size:13px; }.vitality-info-sub { font-size:10.5px; }
+  .vitality-score-num { font-size:22px; }
 }
 
 @media (min-width: 768px) {

@@ -15,7 +15,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
   position: relative;
   overflow-x: hidden;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
   letter-spacing: -.01em;
+}
+
+@media (max-width: 767px) {
+  body { min-height: 100dvh; padding-bottom: calc(126px + env(safe-area-inset-bottom)); }
+  .app-container { padding: 0 12px; }
 }
 
 body::after {
