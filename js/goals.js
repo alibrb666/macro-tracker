@@ -6,6 +6,7 @@ function loadGoalsForm() {
   document.getElementById('goal-protein').value = db.goals.protein;
   document.getElementById('goal-carbs').value   = db.goals.carbs;
   document.getElementById('goal-fat').value     = db.goals.fat;
+  document.getElementById('goal-sugars').value  = db.goals.sugars == null ? 50 : db.goals.sugars;
 }
 
 function saveGoals(btn) {
@@ -14,6 +15,7 @@ function saveGoals(btn) {
     protein: parseFloat(document.getElementById('goal-protein').value) || 150,
     carbs:   parseFloat(document.getElementById('goal-carbs').value)   || 250,
     fat:     parseFloat(document.getElementById('goal-fat').value)     || 65,
+    sugars:  parseFloat(document.getElementById('goal-sugars').value)  || 50,
   };
   save(); renderToday();
   if (!btn) return;
@@ -48,7 +50,8 @@ function exportDayData() {
     protein_g: sum.protein_g + Number(entry.protein || 0),
     carbs_g: sum.carbs_g + Number(entry.carbs || 0),
     fat_g: sum.fat_g + Number(entry.fat || 0),
-  }), { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
+    sugars_g: sum.sugars_g + Number(entry.sugars || entry.sugar || 0),
+  }), { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, sugars_g: 0 });
   const meals = MEALS.map(meal => ({
     id: meal.id,
     name: meal.label,
@@ -82,6 +85,7 @@ function exportDayData() {
         protein_g: Number(targets.protein || 0),
         carbs_g: Number(targets.carbs || 0),
         fat_g: Number(targets.fat || 0),
+        sugars_g: Number(targets.sugars || 50),
       },
       totals,
       remaining_to_target: {
@@ -89,6 +93,7 @@ function exportDayData() {
         protein_g: Number(targets.protein || 0) - totals.protein_g,
         carbs_g: Number(targets.carbs || 0) - totals.carbs_g,
         fat_g: Number(targets.fat || 0) - totals.fat_g,
+        sugars_g: Number(targets.sugars || 50) - totals.sugars_g,
       },
       // Flat list for analysis tools; the same entries are also grouped below.
       logged_food_entries: entries.map((entry, index) => dayExportEntry(entry, index + 1)),
@@ -142,6 +147,7 @@ function dayExportEntry(entry, position) {
       protein_g: Number(entry.protein || 0),
       carbs_g: Number(entry.carbs || 0),
       fat_g: Number(entry.fat || 0),
+      sugars_g: Number(entry.sugars || entry.sugar || 0),
     },
     // Complete food snapshot, including custom fields and an optional photo.
     // Null means the food was removed from the library after it was logged.

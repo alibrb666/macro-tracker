@@ -47,7 +47,8 @@ function setMacroStrategy(stratKey) {
     kcal: targetKcal,
     protein: proteinG,
     carbs: carbsG,
-    fat: fatG
+    fat: fatG,
+    sugars: db.goals.sugars == null ? 50 : db.goals.sugars,
   };
 
   save();

@@ -92,7 +92,7 @@ function applyNeeds(type) {
 
   if (!db.profile) return;
   const m = type === 'diet' ? db.profile.diet : db.profile.maintenance;
-  db.goals = { kcal: m.kcal, protein: m.protein, carbs: m.carbs, fat: m.fat };
+  db.goals = { kcal: m.kcal, protein: m.protein, carbs: m.carbs, fat: m.fat, sugars: db.goals.sugars == null ? 50 : db.goals.sugars };
   save();
   loadGoalsForm();
   renderToday();

@@ -173,7 +173,7 @@ function saveWeight(applyGoals) {
     db.profile.diet = needs.diet;
     if (applyGoals) {
       const target = weightGoalMode() === 'diet' ? needs.diet : needs.maintenance;
-      db.goals = { kcal: target.kcal, protein: target.protein, carbs: target.carbs, fat: target.fat };
+      db.goals = { kcal: target.kcal, protein: target.protein, carbs: target.carbs, fat: target.fat, sugars: db.goals.sugars == null ? 50 : db.goals.sugars };
     }
   }
   save();

@@ -231,7 +231,7 @@ const BACKUP_DB = {
       { foodId: "4hz3o0o4idtmrdmchgt", amount: 75, meal: "fruehstueck", kcal: 192, protein: 6.4, carbs: 31.5, fat: 3.5 }
     ]
   },
-  goals: { kcal: 2382, protein: 191, carbs: 216, fat: 84 },
+  goals: { kcal: 2382, protein: 191, carbs: 216, fat: 84, sugars: 50 },
   profile: {
     age: 20,
     diet: { kcal: 2382, protein: 191, carbs: 216, fat: 84 },

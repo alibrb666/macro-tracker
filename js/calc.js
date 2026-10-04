@@ -36,9 +36,9 @@ function computeNeeds(p) {
 }
 
 function goalsForDate(key) {
-  if (!db.profile) return db.goals;
+  if (!db.profile) return { ...db.goals, sugars: db.goals.sugars == null ? 50 : db.goals.sugars };
   const ws = getWeights();
-  if (!ws.length) return db.goals;
+  if (!ws.length) return { ...db.goals, sugars: db.goals.sugars == null ? 50 : db.goals.sugars };
 
   // Latest weigh-in dated on or before `key` (ws is sorted ascending).
   let w = null;
@@ -46,9 +46,9 @@ function goalsForDate(key) {
   if (!w) w = ws[0];                       // before the first weigh-in → earliest known
 
   // On/after the most recent weigh-in → the live goals already match.
-  if (w === ws[ws.length - 1]) return db.goals;
+  if (w === ws[ws.length - 1]) return { ...db.goals, sugars: db.goals.sugars == null ? 50 : db.goals.sugars };
 
   const needs  = computeNeeds({ ...db.profile, weight: w.kg });
   const target = weightGoalMode() === 'diet' ? needs.diet : needs.maintenance;
-  return { kcal: target.kcal, protein: target.protein, carbs: target.carbs, fat: target.fat };
+  return { kcal: target.kcal, protein: target.protein, carbs: target.carbs, fat: target.fat, sugars: db.goals.sugars == null ? 50 : db.goals.sugars };
 }

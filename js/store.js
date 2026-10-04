@@ -4,7 +4,7 @@
 let db = {
   foods: [],
   log: {},
-  goals: { kcal: 2000, protein: 150, carbs: 250, fat: 65 },
+  goals: { kcal: 2000, protein: 150, carbs: 250, fat: 65, sugars: 50 },
   profile: null,  // { gender, age, weight, height, activity, goal, delta, maintenance, diet }
   weights: [],    // [{ date: 'YYYY-MM-DD', kg: number }] — chronologisch, älteste zuerst
   workouts: {}    // { 'YYYY-MM-DD': [WorkoutEntry] }
@@ -41,7 +41,7 @@ function loadUserDB(id) {
       db = {
         foods: (Array.isArray(parsed.foods) && parsed.foods.length > 0) ? parsed.foods : empty.foods,
         log: (parsed.log && Object.keys(parsed.log).length > 0) ? parsed.log : empty.log,
-        goals: { ...empty.goals, ...(parsed.goals || {}) },
+        goals: { ...empty.goals, sugars: 50, ...(parsed.goals || {}) },
         profile: parsed.profile || empty.profile,
         weights: (Array.isArray(parsed.weights) && parsed.weights.length > 0) ? parsed.weights : empty.weights,
         water: parsed.water || {},

@@ -12,6 +12,7 @@ function openModal(id)  {
 }
 
 function closeModal(id) {
+  if (id === 'modal-food' && typeof closeBarcodeScanner === 'function') closeBarcodeScanner();
   const idx = _modalStack.indexOf(id);
   if (idx !== -1) _modalStack.splice(idx, 1);
   document.getElementById(id).classList.remove('open');

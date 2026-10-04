@@ -35,7 +35,7 @@ function renderToday() {
       carbs: a.carbs + (e.carbs || 0),
       fat: a.fat + (e.fat || 0),
       fiber: a.fiber + (e.fiber || 0),
-      sugar: a.sugar + (e.sugar || 0),
+      sugar: a.sugar + (e.sugars || e.sugar || 0),
     }),
     { kcal:0, protein:0, carbs:0, fat:0, fiber:0, sugar:0 }
   );
@@ -48,6 +48,7 @@ function renderToday() {
   const remaining = calorieGoal - eaten;
   const pctKcal   = Math.min(100, Math.round(eaten / (calorieGoal || 1) * 100));
   const pctProtein= Math.min(100, Math.round((tot.protein || 0) / (g.protein || 1) * 100));
+  const pctSugars = Math.min(100, Math.round((tot.sugar || 0) / (g.sugars || 50) * 100));
   const waterMl   = (db.water && db.water[viewKey()]) || 0;
   const waterGoal = (db.settings && db.settings.waterGoal) || 2500;
   const pctWater  = Math.min(100, Math.round(waterMl / waterGoal * 100));
@@ -155,6 +156,7 @@ function renderToday() {
         ${miniCard('Protein', Math.round((tot.protein||0)*10)/10, g.protein, 'protein')}
         ${miniCard('Carbs',   Math.round((tot.carbs||0)*10)/10,   g.carbs,   'carbs')}
         ${miniCard('Fett',    Math.round((tot.fat||0)*10)/10,     g.fat,     'fat')}
+        ${miniCard('Zucker',  Math.round((tot.sugar||0)*10)/10,   g.sugars || 50, pctSugars >= 100 ? 'fat' : 'carbs')}
         
         <!-- Tiles 5, 6: Pro Widgets (Water & Fasting) -->
         <div id="water-card" class="bento-tile bento-tile-widget" style="padding:0;background:none;border:none;box-shadow:none;"></div>

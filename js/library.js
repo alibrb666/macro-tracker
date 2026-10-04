@@ -70,6 +70,8 @@ function foodEmoji(name) {
 
 let editFoodId = null;
 let libraryFilter = 'all';
+let barcodeScanStream = null;
+let barcodeScanTimer = null;
 
 function setLibraryFilter(filter) {
   libraryFilter = filter;
@@ -103,6 +105,8 @@ function openFoodModal(id) {
   document.getElementById('food-unit-label').value = f && f.unit ? f.unit.label : '';
   document.getElementById('food-unit-g').value = f && f.unit ? f.unit.g : '';
   document.getElementById('ocr-status').textContent = '';
+  setBarcodeStatus('');
+  closeBarcodeScanner();
   const zone = document.getElementById('ocr-zone');
   zone.dataset.photo = f && f.photo ? f.photo : '';
   zone.style.backgroundImage = f && f.photo
@@ -111,6 +115,88 @@ function openFoodModal(id) {
   document.getElementById('btn-ocr').disabled = !f?.photo;
 
   openModal('modal-food');
+}
+
+function setBarcodeStatus(message, type = '') {
+  const status = document.getElementById('barcode-status');
+  if (!status) return;
+  status.textContent = message;
+  status.className = `ocr-status${message ? ' show' : ''}${type ? ` ${type}` : ''}`;
+}
+
+function setBarcodeNutrition(product) {
+  const nutrients = product.nutriments || {};
+  const set = (id, value) => {
+    const number = Number(value);
+    if (Number.isFinite(number)) document.getElementById(id).value = number;
+  };
+  document.getElementById('food-name').value = product.product_name || product.product_name_de || document.getElementById('food-name').value;
+  document.getElementById('food-brand').value = product.brands || document.getElementById('food-brand').value;
+  set('food-kcal', nutrients['energy-kcal_100g'] ?? nutrients.energy_kcal_100g);
+  set('food-protein', nutrients.proteins_100g);
+  set('food-carbs', nutrients.carbohydrates_100g);
+  set('food-fat', nutrients.fat_100g);
+  set('food-sugars', nutrients.sugars_100g);
+  set('food-fiber', nutrients.fiber_100g);
+  set('food-saturated-fat', nutrients['saturated-fat_100g']);
+  set('food-sodium', nutrients.salt_100g ?? nutrients.sodium_100g);
+  set('food-polyols', nutrients.polyols_100g);
+}
+
+async function lookupBarcode(code) {
+  const barcode = String(code || '').replace(/\D/g, '');
+  if (barcode.length < 8 || barcode.length > 14) { setBarcodeStatus('Bitte einen gültigen EAN/UPC-Barcode eingeben.', 'err'); return; }
+  document.getElementById('food-barcode').value = barcode;
+  setBarcodeStatus('Produktdaten werden gesucht …');
+  try {
+    const fields = 'code,product_name,product_name_de,brands,nutriments';
+    const response = await fetch(`https://world.openfoodfacts.org/api/v3/product/${encodeURIComponent(barcode)}.json?fields=${fields}`);
+    const data = await response.json();
+    if (!response.ok || !data.product) { setBarcodeStatus('Produkt nicht gefunden — Werte können manuell ergänzt werden.', 'err'); return; }
+    setBarcodeNutrition(data.product);
+    setBarcodeStatus('Produkt gefunden — bitte Etikettwerte kurz prüfen.', 'ok');
+  } catch (error) {
+    setBarcodeStatus('Produktdaten konnten nicht geladen werden. Bitte Verbindung prüfen oder Werte manuell eingeben.', 'err');
+  }
+}
+
+function lookupBarcodeFromField() { lookupBarcode(document.getElementById('food-barcode').value); }
+
+async function openBarcodeScanner() {
+  if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setBarcodeStatus('Kamera-Scan wird von diesem Browser nicht unterstützt. Bitte Barcode eingeben und „Suchen“ wählen.', 'err');
+    return;
+  }
+  try {
+    const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] });
+    barcodeScanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    const camera = document.getElementById('barcode-camera');
+    const video = document.getElementById('barcode-video');
+    video.srcObject = barcodeScanStream;
+    camera.style.display = '';
+    setBarcodeStatus('Barcode vor die Kamera halten …');
+    barcodeScanTimer = setInterval(async () => {
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+      try {
+        const results = await detector.detect(video);
+        if (results[0] && results[0].rawValue) { closeBarcodeScanner(); lookupBarcode(results[0].rawValue); }
+      } catch (error) { /* continue scanning while the camera frame is changing */ }
+    }, 400);
+  } catch (error) {
+    closeBarcodeScanner();
+    setBarcodeStatus('Kamera konnte nicht geöffnet werden. Bitte Berechtigung erlauben oder Barcode manuell eingeben.', 'err');
+  }
+}
+
+function closeBarcodeScanner() {
+  if (barcodeScanTimer) clearInterval(barcodeScanTimer);
+  barcodeScanTimer = null;
+  if (barcodeScanStream) barcodeScanStream.getTracks().forEach(track => track.stop());
+  barcodeScanStream = null;
+  const video = document.getElementById('barcode-video');
+  if (video) video.srcObject = null;
+  const camera = document.getElementById('barcode-camera');
+  if (camera) camera.style.display = 'none';
 }
 
 function handlePhoto(event) {
