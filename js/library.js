@@ -74,6 +74,7 @@ let barcodeScanStream = null;
 let barcodeScanTimer = null;
 let barcodeFallbackScanner = null;
 let labelImageData = null;
+let productCameraStream = null;
 
 function setLibraryFilter(filter) {
   libraryFilter = filter;
@@ -112,6 +113,7 @@ function openFoodModal(id) {
   labelImageData = null;
   setBarcodeStatus('');
   closeBarcodeScanner();
+  closeProductCamera();
   const zone = document.getElementById('product-photo-zone');
   zone.dataset.photo = f && f.photo ? f.photo : '';
   zone.classList.toggle('has-photo', Boolean(f && f.photo));
@@ -153,6 +155,8 @@ function setBarcodeNutrition(product) {
 }
 
 async function lookupBarcode(code) {
+  // A manual lookup can be triggered while a scanner is still open.
+  closeBarcodeScanner();
   const barcode = String(code || '').replace(/\D/g, '');
   if (barcode.length < 8 || barcode.length > 14) { setBarcodeStatus('Bitte einen gültigen EAN/UPC-Barcode eingeben.', 'err'); return; }
   document.getElementById('food-barcode').value = barcode;
@@ -172,6 +176,7 @@ async function lookupBarcode(code) {
 function lookupBarcodeFromField() { lookupBarcode(document.getElementById('food-barcode').value); }
 
 async function openBarcodeScanner() {
+  closeProductCamera();
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     setBarcodeStatus('Kamera-Zugriff wird von diesem Browser nicht unterstützt. Bitte Barcode eingeben und „Suchen“ wählen.', 'err');
     return;
@@ -265,13 +270,50 @@ function readImageFile(file) {
 async function loadProductPhoto(file) {
   try {
     const dataUrl = await readImageFile(file);
-    const photo = await resizeImage(dataUrl, 1200, 0.82);
-    if (!photo) throw new Error('resize');
-    const zone = document.getElementById('product-photo-zone');
-    zone.dataset.photo = photo;
-    zone.classList.add('has-photo');
-    zone.style.backgroundImage = `linear-gradient(rgba(15,16,18,.34), rgba(15,16,18,.34)), url(${photo})`;
+    await loadProductPhotoData(dataUrl);
   } catch (error) { showToast('Bitte ein gültiges Produktfoto auswählen.', 'warning'); }
+}
+
+async function loadProductPhotoData(dataUrl) {
+  closeProductCamera();
+  const photo = await resizeImage(dataUrl, 1200, 0.82);
+  if (!photo) throw new Error('resize');
+  const zone = document.getElementById('product-photo-zone');
+  zone.dataset.photo = photo;
+  zone.classList.add('has-photo');
+  zone.style.backgroundImage = `linear-gradient(rgba(15,16,18,.34), rgba(15,16,18,.34)), url(${photo})`;
+}
+
+async function openProductCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { showToast('Die Kamera wird von diesem Browser nicht unterstützt.', 'warning'); return; }
+  try {
+    await closeBarcodeScanner();
+    closeProductCamera();
+    productCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    const video = document.getElementById('product-camera-video');
+    video.srcObject = productCameraStream;
+    document.getElementById('product-camera').style.display = '';
+  } catch (error) { showToast('Kamera konnte nicht geöffnet werden. Bitte Berechtigung erlauben.', 'warning'); }
+}
+
+function closeProductCamera() {
+  if (productCameraStream) productCameraStream.getTracks().forEach(track => track.stop());
+  productCameraStream = null;
+  const video = document.getElementById('product-camera-video');
+  if (video) video.srcObject = null;
+  const camera = document.getElementById('product-camera');
+  if (camera) camera.style.display = 'none';
+}
+
+async function captureProductCamera() {
+  const video = document.getElementById('product-camera-video');
+  if (!video || !video.videoWidth) { showToast('Die Kamera ist noch nicht bereit.', 'warning'); return; }
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  const image = canvas.toDataURL('image/jpeg', .92);
+  closeProductCamera();
+  try { await loadProductPhotoData(image); } catch (error) { showToast('Das Kamerafoto konnte nicht verarbeitet werden.', 'warning'); }
 }
 
 async function loadLabelPhoto(file) {
