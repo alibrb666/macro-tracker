@@ -3,6 +3,7 @@
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const CLOUD_DATA_TABLE = 'mt_cloud_data';
+const CLOUD_PROFILE_TABLE = 'mt_profiles';
 
 let cloudToken     = null;
 let cloudEmail     = null;
@@ -11,6 +12,7 @@ let cloudLastSync  = null;
 let cloudApplying  = false;
 let cloudPostLoginDone = false;
 let cloudSessionReady = null;
+let passwordRecoveryPending = false;
 
 function handleAuthExpired() {
   sb.auth.signOut();
@@ -33,6 +35,12 @@ function initCloud() {
       renderCloudUI();
       if (event === 'INITIAL_SESSION') { finish(); return; }
       if (event === 'SIGNED_OUT') { cloudPostLoginDone = false; return; }
+      if (event === 'PASSWORD_RECOVERY') {
+        passwordRecoveryPending = true;
+        finish();
+        if (typeof showPasswordRecovery === 'function') showPasswordRecovery();
+        return;
+      }
       if (session && event === 'SIGNED_IN') handleSignedIn();
     });
     // Fallback bei blockiertem Browser-Speicher oder einer gestörten Auth-Antwort.
@@ -46,44 +54,35 @@ async function handleSignedIn() {
   cloudPostLoginDone = true;
   const loginScreen = document.getElementById('login-screen');
   const onLogin = !loginScreen.classList.contains('hidden');
-  try { await cloudAfterLogin(onLogin ? loginCloudStatus : setCloudStatus); } catch (e) {}
+  try {
+    await resolvePostLogin();
+    await cloudAfterLogin(onLogin ? loginCloudStatus : setCloudStatus);
+  } catch (e) {}
   if (loginScreen.classList.contains('hidden')) return;
   resolvePostLogin();
 }
 
 function cloudSnapshot() {
-  const profiles = {};
-  users.forEach(u => {
-    const raw = localStorage.getItem(dataKey(u.id));
-    if (raw) { try { profiles[u.id] = JSON.parse(raw); } catch(e) {} }
-  });
-  return { v: 1, users, profiles, savedAt: new Date().toISOString() };
+  return { v: 2, data: db, savedAt: new Date().toISOString() };
 }
 
 function applyCloudSnapshot(snap) {
-  if (!snap) return;
+  if (!snap || !currentUser) return;
   cloudApplying = true;
   try {
-    if (Array.isArray(snap.users)) { users = snap.users; saveUsers(); }
-    if (snap.profiles) {
-      Object.keys(snap.profiles).forEach(id => {
-        try {
-          localStorage.setItem(dataKey(id), JSON.stringify(snap.profiles[id]));
-        } catch(e) {
-          console.error('Storage quota exceeded for profile', id, e);
-        }
-      });
+    let data = snap.data;
+    if (!data && snap.v === 1 && snap.profiles) {
+      localStorage.setItem('mt-legacy-cloud-backup-' + currentUser.id, JSON.stringify(snap));
+      const oldSessionId = sessionStorage.getItem('mt-current');
+      data = snap.profiles[oldSessionId] || Object.values(snap.profiles)[0];
+      setCloudStatus('Alte Profildaten wurden in dein Konto übernommen.');
+    }
+    if (data) {
+      localStorage.setItem(dataKey(currentUser.id), JSON.stringify(data));
+      loadUserDB(currentUser.id);
+      refreshAll();
     }
     setCloudMarker(snap.savedAt);
-    if (currentUser) {
-      if (users.some(u => u.id === currentUser.id)) { loadUserDB(currentUser.id); refreshAll(); }
-      else { logout(); return; }
-    } else {
-      const loginScreen = document.getElementById('login-screen');
-      if (loginScreen && !loginScreen.classList.contains('hidden')) {
-        resolvePostLogin();
-      }
-    }
   } finally {
     cloudApplying = false;
   }
@@ -170,14 +169,15 @@ async function cloudAfterLogin(status) {
   if (remote) status('✅ Cloud-Daten übernommen.');
 }
 
-async function doCloudAuth(mode, email, pw, status) {
+async function doCloudAuth(mode, email, pw, status, displayName) {
   email = (email || '').trim();
   if (!email || !/.+@.+\..+/.test(email)) { status('⚠️ Bitte eine gültige E-Mail eingeben.', true); return false; }
-  if (!pw || pw.length < 6) { status('⚠️ Passwort muss mind. 6 Zeichen haben.', true); return false; }
+  if (!pw || pw.length < 10) { status('⚠️ Passwort muss mindestens 10 Zeichen haben.', true); return false; }
   status(mode === 'up' ? 'Registriere…' : 'Melde an…');
   try {
     if (mode === 'up') {
-      const { data, error } = await sb.auth.signUp({ email, password: pw, options: { emailRedirectTo: REDIRECT_URL } });
+      const { data, error } = await sb.auth.signUp({ email, password: pw,
+        options: { emailRedirectTo: REDIRECT_URL, data: { display_name: displayName || undefined } } });
       if (error) { status('⚠️ ' + authErrorText(error), true); return false; }
       if (!data.session) {
         status('✅ Fast geschafft! Wir haben dir eine Bestätigungsmail an ' + email + ' geschickt. Bestätige den Link und logge dich dann ein.');
@@ -227,6 +227,18 @@ async function cloudOAuth(provider) {
   if (error) alert('Anmeldung mit ' + provider + ' fehlgeschlagen: ' + error.message);
 }
 
+async function cloudResetPassword(email, status) {
+  email = (email || '').trim();
+  if (!email || !/.+@.+\..+/.test(email)) { status('⚠️ Bitte gib zuerst deine E-Mail-Adresse ein.', true); return; }
+  status('Sende Link zum Zurücksetzen…');
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: REDIRECT_URL });
+  if (error) { status('⚠️ ' + authErrorText(error), true); return; }
+  status('✅ Falls ein Konto existiert, wurde ein Link an deine E-Mail gesendet.');
+}
+function loginCloudResetPassword() {
+  cloudResetPassword(document.getElementById('login-cloud-email').value, loginCloudStatus);
+}
+
 async function cloudResendWith(email, status) {
   email = (email || '').trim();
   if (!email || !/.+@.+\..+/.test(email)) { status('⚠️ Bitte zuerst deine E-Mail eingeben.', true); return; }
@@ -244,6 +256,7 @@ function loginCloudResend() { cloudResendWith(document.getElementById('login-clo
 async function cloudSignOut() {
   await sb.auth.signOut();
   cloudToken = null; cloudEmail = null; cloudLastSync = null;
+  showLogin();
   renderCloudUI();
 }
 
@@ -276,7 +289,7 @@ function renderCloudUI() {
       </div>
       <input type="email" id="cloud-email" placeholder="E-Mail" autocomplete="email"
              style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:11px 14px;font-size:14px;outline:none;width:100%">
-      <input type="password" id="cloud-pw" placeholder="Passwort (mind. 6 Zeichen)" autocomplete="current-password"
+      <input type="password" id="cloud-pw" placeholder="Passwort (mind. 10 Zeichen)" autocomplete="current-password"
              style="background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:11px 14px;font-size:14px;outline:none;width:100%">
       <div style="display:flex;gap:10px">
         <button class="btn-primary" onclick="cloudSignIn()" style="flex:1">Einloggen</button>
@@ -284,7 +297,6 @@ function renderCloudUI() {
       </div>
       <div style="display:flex;gap:10px">
         <button class="btn-outline" onclick="cloudOAuth('google')" style="flex:1;font-size:13px">Google</button>
-        <button class="btn-outline" onclick="cloudOAuth('github')" style="flex:1;font-size:13px">GitHub</button>
       </div>
       <button class="btn-outline" onclick="cloudResend()" style="font-size:12.5px;border:none;color:var(--muted);padding:4px">✉️ Bestätigungsmail erneut senden</button>
       <div id="cloud-status" style="display:none;font-size:12.5px;text-align:center;padding:4px"></div>`;

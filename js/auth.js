@@ -1,304 +1,177 @@
 // ===== auth.js =====
-// Authentication, PIN pad, and Profile selection
+// One Supabase account owns one Macro Tracker data set. Local mode is a
+// deliberately separate, single-device guest mode.
 
-let users        = [];     // Profil-Liste
-let currentUser  = null;   // aktives Profil-Objekt
-let pinBuffer    = '';     // aktuell eingetippter PIN
-let pinMode      = 'enter';// 'enter' | 'set' | 'confirm'
-let pinTarget    = null;   // Profil bei 'enter'
-let firstPin     = '';     // gemerkter PIN bei 'set' → 'confirm'
-let newProfile   = null;   // { name, emoji } während Erstellung
+let currentUser = null;
+const GUEST_USER = { id: 'local-guest', name: 'Gast', emoji: '🥗', isGuest: true };
 
 async function init() {
-  loadUsers();
   document.querySelectorAll('.modal-overlay').forEach(o =>
     o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); })
   );
   document.getElementById('lib-search').addEventListener('input', e => renderLibrary(e.target.value));
-
-  // Erst die gespeicherte Supabase-Sitzung abwarten. Ohne diese Wartezeit
-  // wurde bei jedem neuen Browser voreilig ein lokales Standardprofil erzeugt.
   await initCloud();
-
-  const sessionId = sessionStorage.getItem('mt-current');
+  if (passwordRecoveryPending) { showPasswordRecovery(); return; }
   if (cloudToken) {
-    // Ein angemeldetes Cloud-Konto ist die gemeinsame Quelle für alle Browser.
+    await resolvePostLogin();
     await cloudAfterLogin(loginCloudStatus);
-    resolvePostLogin();
-  } else if (sessionId && users.some(u => u.id === sessionId)) {
-    enterApp(users.find(u => u.id === sessionId));
-  } else if (!users.length) {
-    const defaultUser = { id: 'user-ali', name: 'Ali', emoji: '🥗' };
-    users = [defaultUser];
-    saveUsers();
-    enterApp(defaultUser);
-  } else {
-    showLogin();
-  }
+  } else showLogin();
 }
 
 function showLogin() {
-  document.getElementById('login-screen').classList.remove('hidden');
-  loadUsers();
-  // Netflix-Style: Wenn der User im Cloud-Konto eingeloggt ist -> Zeige Profil-Auswahl ("Wer schaut gerade?")
-  // Ansonsten -> Zeige E-Mail Login / Registrierung
-  if (cloudToken) {
-    loginShowSelect();
-  } else {
-    loginShowHome();
-  }
-}
-
-// Zeigt genau EINE Login-Ansicht, blendet die anderen aus.
-function showLoginView(id) {
-  ['login-home','login-select','login-cloud','login-register','login-create','login-pin']
-    .forEach(v => { const el = document.getElementById(v); if (el) el.style.display = (v === id ? 'block' : 'none'); });
-}
-function loginShowHome() { showLoginView('login-home'); }
-
-function loginContinueOffline() {
-  loadUsers();
-  if (users.length) loginShowSelect();
-  else loginShowCreate();
-}
-function loginBackFromCreate() {
-  loadUsers();
-  if (users.length) loginShowSelect();
-  else loginShowHome();
-}
-
-function resolvePostLogin() {
-  loadUsers();
-  const pending = localStorage.getItem(PENDING_NAME_KEY);
-  if (!users.length && pending) {
-    localStorage.removeItem(PENDING_NAME_KEY);
-    const user = { id: uid(), name: pending.slice(0, 20) || 'Ali', emoji: AVATARS[0] };
-    users.push(user);
-    saveUsers();
-    enterApp(user);
-    return;
-  }
-  if (!users.length) {
-    const user = { id: 'user-ali', name: 'Ali', emoji: '🥗' };
-    users.push(user);
-    saveUsers();
-    enterApp(user);
-    return;
-  }
-  const sessionId = sessionStorage.getItem('mt-current');
-  if (sessionId && users.some(u => u.id === sessionId)) {
-    enterApp(users.find(u => u.id === sessionId));
-    return;
-  }
-  // Netflix-Style: Zeige Profil-Auswahl
-  loginShowSelect();
-}
-
-function enterApp(user) {
-  currentUser = user;
-  sessionStorage.setItem('mt-current', user.id);
-  loadUserDB(user.id);
-
-  document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('today-date').textContent =
-    new Date().toLocaleDateString('de-DE', { weekday:'long', day:'numeric', month:'long' });
-  document.getElementById('profile-chip-emoji').textContent = user.emoji;
-  document.getElementById('profile-chip-name').textContent  = user.name;
-
-  renderToday();
-  renderLibrary();
-  renderBedarf();
-  loadGoalsForm();
-}
-
-function logout() {
-  sessionStorage.removeItem('mt-current');
   currentUser = null;
-  showLogin();
+  document.getElementById('login-screen').classList.remove('hidden');
+  loginShowHome();
 }
+
+function showLoginView(id) {
+  ['login-home', 'login-cloud', 'login-register', 'login-reset'].forEach(viewId => {
+    const element = document.getElementById(viewId);
+    if (element) element.style.display = viewId === id ? 'block' : 'none';
+  });
+}
+
+function loginShowHome() { showLoginView('login-home'); }
+function loginContinueOffline() { enterApp(GUEST_USER); }
 
 function loginShowCloud() {
   showLoginView('login-cloud');
-  const st = document.getElementById('login-cloud-status');
-  if (st) st.style.display = 'none';
+  const status = document.getElementById('login-cloud-status');
+  if (status) status.style.display = 'none';
 }
 
 function loginShowRegister() {
   showLoginView('login-register');
   document.getElementById('reg-name').value = '';
   document.getElementById('reg-email-form').style.display = 'none';
-  ['reg-email','reg-pw'].forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
-  const st = document.getElementById('login-reg-status'); if (st) st.style.display = 'none';
+  ['reg-email', 'reg-pw'].forEach(id => { document.getElementById(id).value = ''; });
+  const status = document.getElementById('login-reg-status');
+  if (status) status.style.display = 'none';
   updateRegMethods();
 }
 
 function updateRegMethods() {
-  const ok = document.getElementById('reg-name').value.trim().length >= 1;
-  ['reg-m-email','reg-m-google','reg-m-github'].forEach(id => document.getElementById(id).disabled = !ok);
+  const enabled = document.getElementById('reg-name').value.trim().length > 0;
+  ['reg-m-email', 'reg-m-google'].forEach(id => {
+    const button = document.getElementById(id);
+    if (button) button.disabled = !enabled;
+  });
 }
+
 function regChooseEmail() {
   document.getElementById('reg-email-form').style.display = 'block';
   document.getElementById('reg-email').focus();
 }
+
 function regOAuth(provider) {
   const name = document.getElementById('reg-name').value.trim();
-  if (name) localStorage.setItem(PENDING_NAME_KEY, name.slice(0, 20));
+  if (name) localStorage.setItem(PENDING_NAME_KEY, name.slice(0, 60));
   cloudOAuth(provider);
 }
+
 async function loginRegisterSubmit() {
   const name = document.getElementById('reg-name').value.trim();
-  if (name) localStorage.setItem(PENDING_NAME_KEY, name.slice(0, 20));
-  await doCloudAuth('up',
-    document.getElementById('reg-email').value,
-    document.getElementById('reg-pw').value,
-    loginRegStatus);
-}
-function loginRegStatus(msg, isErr) {
-  const el = document.getElementById('login-reg-status');
-  if (!el) return;
-  el.style.display = 'block';
-  el.style.color = isErr ? 'var(--danger)' : 'var(--muted)';
-  el.textContent = msg;
+  if (!name) { loginRegStatus('⚠️ Bitte gib deinen Namen ein.', true); return; }
+  localStorage.setItem(PENDING_NAME_KEY, name.slice(0, 60));
+  await doCloudAuth('up', document.getElementById('reg-email').value,
+    document.getElementById('reg-pw').value, loginRegStatus, name);
 }
 
-function loginShowSelect() {
-  loadUsers();
-  showLoginView('login-select');
+function loginRegStatus(message, isError) {
+  const element = document.getElementById('login-reg-status');
+  if (!element) return;
+  element.style.display = 'block';
+  element.style.color = isError ? 'var(--danger)' : 'var(--muted)';
+  element.textContent = message;
+}
 
-  const cloudBtn = document.getElementById('login-select-cloud-btn');
-  if (cloudBtn) {
-    if (cloudToken) {
-      cloudBtn.innerHTML = `☁️ <span style="color:var(--text);font-weight:700">${esc(cloudEmail||'Konto')}</span> · <span style="color:var(--muted)">Abmelden</span>`;
-      cloudBtn.onclick = () => cloudSignOut();
-    } else {
-      cloudBtn.innerHTML = `☁️ Anmelden / Konto verbinden`;
-      cloudBtn.onclick = () => loginShowHome();
-    }
+function showPasswordRecovery() {
+  showLoginView('login-reset');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('reset-pw').value = '';
+  document.getElementById('reset-pw-confirm').value = '';
+  const status = document.getElementById('login-reset-status');
+  if (status) status.style.display = 'none';
+}
+
+async function completePasswordReset() {
+  const password = document.getElementById('reset-pw').value;
+  const confirmation = document.getElementById('reset-pw-confirm').value;
+  const status = document.getElementById('login-reset-status');
+  const report = (message, isError) => {
+    status.style.display = 'block'; status.style.color = isError ? 'var(--danger)' : 'var(--muted)'; status.textContent = message;
+  };
+  if (password.length < 10) { report('⚠️ Das Passwort muss mindestens 10 Zeichen haben.', true); return; }
+  if (password !== confirmation) { report('⚠️ Die Passwörter stimmen nicht überein.', true); return; }
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) { report('⚠️ ' + authErrorText(error), true); return; }
+  passwordRecoveryPending = false;
+  report('✅ Passwort gespeichert. Du wirst angemeldet…');
+  await resolvePostLogin();
+  await cloudAfterLogin(loginCloudStatus);
+}
+
+async function resolvePostLogin() {
+  const { data, error } = await sb.auth.getUser();
+  if (error || !data.user) { showLogin(); return; }
+  const user = data.user;
+  const pendingName = localStorage.getItem(PENDING_NAME_KEY);
+  const fallbackName = pendingName || user.user_metadata?.display_name || user.email?.split('@')[0] || 'Mein Profil';
+  const profile = await ensureCloudProfile(user, fallbackName);
+  localStorage.removeItem(PENDING_NAME_KEY);
+  migrateLocalDataToAccount(user.id);
+  enterApp({ id: user.id, name: profile?.display_name || fallbackName,
+    emoji: profile?.avatar || '🥗', email: user.email || '' });
+}
+
+// The old app stored its active profile only in this browser. Copy it once to
+// the new account key so the first cloud sync can safely upload it if needed.
+function migrateLocalDataToAccount(accountId) {
+  if (localStorage.getItem(dataKey(accountId))) return;
+  const candidates = [sessionStorage.getItem('mt-current'), GUEST_USER.id];
+  try {
+    const legacyUsers = JSON.parse(localStorage.getItem('mt-users')) || [];
+    legacyUsers.forEach(user => candidates.push(user.id));
+  } catch (error) {}
+  for (const id of candidates) {
+    if (!id) continue;
+    const data = localStorage.getItem(dataKey(id));
+    if (data) { localStorage.setItem(dataKey(accountId), data); return; }
   }
-
-  const grid = document.getElementById('profile-grid');
-  grid.innerHTML = users.map(u => `
-    <div class="profile-card" onclick="loginPickUser('${u.id}')">
-      <div class="profile-card-emoji">${u.emoji}</div>
-      <div class="profile-card-name">${esc(u.name)}</div>
-    </div>`).join('') + `
-    <div class="profile-card add" onclick="loginShowCreate()">
-      <div class="profile-card-emoji">+</div>
-      <div class="profile-card-name">Neues Profil</div>
-    </div>`;
+  const legacyData = localStorage.getItem(LEGACY_KEY);
+  if (legacyData) localStorage.setItem(dataKey(accountId), legacyData);
 }
 
-function loginShowCreate() {
-  showLoginView('login-create');
-
-  newProfile = { name: '', emoji: AVATARS[0] };
-  document.getElementById('create-name').value = '';
-  document.getElementById('create-next').disabled = true;
-  document.getElementById('emoji-picker').innerHTML = AVATARS.map((em, i) =>
-    `<div class="emoji-opt ${i===0?'selected':''}" onclick="pickEmoji(this,'${em}')">${em}</div>`
-  ).join('');
-}
-
-function pickEmoji(el, em) {
-  newProfile.emoji = em;
-  document.querySelectorAll('.emoji-opt').forEach(o => o.classList.remove('selected'));
-  el.classList.add('selected');
-}
-function updateCreateNext() {
-  const name = document.getElementById('create-name').value.trim();
-  newProfile.name = name;
-  document.getElementById('create-next').disabled = name.length < 1;
-}
-
-function createGoToPin() {
-  pinMode = 'set';
-  firstPin = '';
-  showPinView(newProfile.emoji, newProfile.name, 'PIN festlegen (4 Ziffern)');
-}
-
-function loginPickUser(id) {
-  pinTarget = users.find(u => u.id === id);
-  if (!pinTarget) return;
-  if (!pinTarget.pinHash) { enterApp(pinTarget); return; }  // Konto-Profil ohne PIN → direkt rein
-  pinMode = 'enter';
-  showPinView(pinTarget.emoji, pinTarget.name, 'PIN eingeben');
-}
-
-function showPinView(emoji, name, prompt) {
-  showLoginView('login-pin');
-  document.getElementById('pin-avatar').textContent = emoji;
-  document.getElementById('pin-name').textContent   = name;
-  document.getElementById('pin-prompt').textContent = prompt;
-  pinBuffer = '';
-  renderPinDots();
-  renderPinPad();
-}
-
-function renderPinDots() {
-  const dots = document.getElementById('pin-dots');
-  dots.innerHTML = [0,1,2,3].map(i =>
-    `<div class="pin-dot ${i < pinBuffer.length ? 'filled' : ''}"></div>`
-  ).join('');
-}
-function renderPinPad() {
-  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
-  document.getElementById('pin-pad').innerHTML = keys.map(k => {
-    if (k === '')  return `<div class="pin-key empty"></div>`;
-    if (k === '⌫') return `<div class="pin-key action" onclick="pinDelete()">⌫</div>`;
-    return `<div class="pin-key" onclick="pinPress('${k}')">${k}</div>`;
-  }).join('');
-}
-function pinPress(d) {
-  if (pinBuffer.length >= 4) return;
-  pinBuffer += d;
-  renderPinDots();
-  if (pinBuffer.length === 4) setTimeout(pinComplete, 180);
-}
-function pinDelete() {
-  pinBuffer = pinBuffer.slice(0, -1);
-  renderPinDots();
-}
-function pinShakeReset() {
-  const dots = document.getElementById('pin-dots');
-  dots.classList.add('shake');
-  setTimeout(() => { dots.classList.remove('shake'); pinBuffer = ''; renderPinDots(); }, 420);
-}
-
-function pinComplete() {
-  if (pinMode === 'enter') {
-    if (hashPin(pinBuffer) === pinTarget.pinHash) {
-      enterApp(pinTarget);
-    } else {
-      document.getElementById('pin-prompt').textContent = 'Falscher PIN — erneut versuchen';
-      pinShakeReset();
-    }
-  } else if (pinMode === 'set') {
-    firstPin = pinBuffer;
-    pinMode = 'confirm';
-    document.getElementById('pin-prompt').textContent = 'PIN bestätigen';
-    pinBuffer = '';
-    renderPinDots();
-  } else if (pinMode === 'confirm') {
-    if (pinBuffer === firstPin) {
-      finishCreateProfile(hashPin(firstPin));
-    } else {
-      document.getElementById('pin-prompt').textContent = 'PINs stimmen nicht — neu festlegen';
-      pinMode = 'set'; firstPin = '';
-      pinShakeReset();
-    }
+async function ensureCloudProfile(user, fallbackName) {
+  try {
+    const { data: existing, error: selectError } = await sb.from(CLOUD_PROFILE_TABLE)
+      .select('display_name, avatar').eq('id', user.id).maybeSingle();
+    if (selectError) throw selectError;
+    if (existing) return existing;
+    const { data, error } = await sb.from(CLOUD_PROFILE_TABLE).upsert({
+      id: user.id, display_name: fallbackName.slice(0, 60), avatar: '🥗', updated_at: new Date().toISOString()
+    }).select('display_name, avatar').single();
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    // The account remains usable if the SQL migration has not been run yet.
+    console.warn('Cloud profile could not be loaded:', error.message);
+    return null;
   }
 }
 
-function finishCreateProfile(pinHash) {
-  const isFirst = users.length === 0;
-  const user = { id: uid(), name: newProfile.name, emoji: newProfile.emoji, pinHash };
-  users.push(user);
-  saveUsers();
+function enterApp(user) {
+  currentUser = user;
+  loadUserDB(user.id);
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('today-date').textContent =
+    new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('profile-chip-emoji').textContent = user.emoji;
+  document.getElementById('profile-chip-name').textContent = user.name;
+  renderToday(); renderLibrary(); renderBedarf(); loadGoalsForm();
+}
 
-  // Erstes Profil: bestehende Single-User-Daten übernehmen
-  if (isFirst) {
-    const legacy = localStorage.getItem(LEGACY_KEY);
-    if (legacy) localStorage.setItem(dataKey(user.id), legacy);
-  }
-  enterApp(user);
+async function logout() {
+  if (cloudToken) await cloudSignOut();
+  else showLogin();
 }

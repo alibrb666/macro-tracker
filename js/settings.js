@@ -101,22 +101,11 @@ function renderSettingsModal() {
 
     <div class="divider" style="margin:16px 0"></div>
 
-    <!-- 3. PROFIL & PIN VERWALTEN -->
-    <div style="font-weight:800;font-size:14px;color:var(--text);margin-bottom:8px">🔒 Profil-Sicherheit (PIN)</div>
+    <!-- 3. KONTO -->
+    <div style="font-weight:800;font-size:14px;color:var(--text);margin-bottom:8px">🔒 Konto</div>
     <div style="font-size:12.5px;color:var(--muted);margin-bottom:12px">
-      ${currentUser && currentUser.pinHash ? 'Dein Profil ist aktuell mit einem 4-stelligen PIN geschützt.' : 'Kein PIN gesetzt. Du kannst einen 4-stelligen PIN festlegen.'}
+      ${currentUser?.isGuest ? 'Du nutzt die App lokal auf diesem Gerät. Erstelle ein Konto, um Daten sicher zu synchronisieren.' : `Angemeldet als ${esc(currentUser?.email || currentUser?.name || '')}.`}
     </div>
-    <div style="display:flex;gap:10px">
-      <button class="btn-outline" onclick="closeModal('modal-settings');createGoToPin()" style="flex:1">🔑 PIN ändern / festlegen</button>
-      ${currentUser && currentUser.pinHash ? `<button class="btn-outline danger" onclick="removeProfilePin()" style="flex:1">🗑️ PIN entfernen</button>` : ''}
-    </div>
+    ${currentUser?.isGuest ? '' : '<button class="btn-outline danger" onclick="cloudSignOut();closeModal(\'modal-settings\')" style="width:100%">Abmelden</button>'}
   `;
-}
-
-function removeProfilePin() {
-  if (!currentUser) return;
-  delete currentUser.pinHash;
-  saveUsers();
-  renderSettingsModal();
-  showToast('🔓 PIN erfolgreich entfernt', 'success');
 }

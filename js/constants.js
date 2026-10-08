@@ -49,7 +49,6 @@ const MEALS = [
   { id: 'snack',        label: 'Snack',         emoji: '🍎' },
 ];
 
-const USERS_KEY  = 'mt-users';      // [{ id, name, emoji, pinHash }]
 const LEGACY_KEY = 'macro-tracker'; // alte Single-User-Daten
 const PENDING_NAME_KEY = 'mt-pending-profile-name'; // bei Registrierung gemerkter Profilname
 const BACKUP_DB = {
@@ -252,7 +251,21 @@ const BACKUP_DB = {
   workouts: {}
 };
 
-const EMPTY_DB   = () => JSON.parse(JSON.stringify(BACKUP_DB));
+// New accounts must start with private empty data, never with a developer/demo log.
+const EMPTY_DB = () => ({
+  foods: [],
+  log: {},
+  goals: { kcal: 2000, protein: 150, carbs: 250, fat: 65, sugars: 50 },
+  profile: null,
+  weights: [],
+  water: {},
+  waterGoal: 2500,
+  waterEntries: {},
+  fastingPlan: '16:8',
+  fastingStart: null,
+  fastingHistory: [],
+  workouts: {}
+});
 const AVATARS    = ['🙂','💪','🏃','🥗','🔥','⭐','🦁','🐻','🦊','🐱','🦄','🌸','🏆','🎯','🚀','🍎','🥑','🧗'];
 
 const TOTAL_STEPS = 6;

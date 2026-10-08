@@ -10,23 +10,6 @@ let db = {
   workouts: {}    // { 'YYYY-MM-DD': [WorkoutEntry] }
 };
 
-function hashPin(pin) {
-  // Leichtgewichtiger Hash (clientseitig, keine echte Krypto möglich)
-  let h = 5381;
-  for (let i = 0; i < pin.length; i++) h = ((h << 5) + h + pin.charCodeAt(i)) >>> 0;
-  return 'h' + h.toString(36);
-}
-
-function loadUsers() {
-  try { users = JSON.parse(localStorage.getItem(USERS_KEY)) || []; }
-  catch(e) { users = []; }
-}
-
-function saveUsers() {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  cloudSyncSoon();
-}
-
 function dataKey(id) {
   return 'mt-data-' + id;
 }
