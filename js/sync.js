@@ -14,9 +14,14 @@ let cloudPostLoginDone = false;
 let cloudSessionReady = null;
 let passwordRecoveryPending = false;
 
+function legacySnapshotSyncEnabled() {
+  return !(typeof syncV2Enabled === 'function' && syncV2Enabled());
+}
+
 function handleAuthExpired() {
   sb.auth.signOut();
   cloudToken = null; cloudEmail = null;
+  if (typeof endActiveSession === 'function') void endActiveSession();
   setCloudStatus('⚠️ Sitzung abgelaufen — bitte neu einloggen.', true);
   renderCloudUI();
 }
@@ -67,6 +72,7 @@ function cloudSnapshot() {
 }
 
 function applyCloudSnapshot(snap) {
+  if (!legacySnapshotSyncEnabled()) return;
   if (!snap || !currentUser) return;
   cloudApplying = true;
   try {
@@ -89,13 +95,14 @@ function applyCloudSnapshot(snap) {
 }
 
 function cloudSyncSoon() {
+  if (!legacySnapshotSyncEnabled()) return;
   if (!cloudToken || cloudApplying) return;
   clearTimeout(cloudPushTimer);
   cloudPushTimer = setTimeout(cloudPush, 1500);
 }
 
 window.addEventListener('beforeunload', () => {
-  if (cloudPushTimer && cloudToken) {
+  if (legacySnapshotSyncEnabled() && cloudPushTimer && cloudToken) {
     clearTimeout(cloudPushTimer);
     cloudPushTimer = null;
     // Der normale Sync läuft nach jeder Änderung; dies startet ihn beim
@@ -107,7 +114,7 @@ window.addEventListener('beforeunload', () => {
 // Beim Wechsel zurück in einen Browser-Tab den kanonischen Cloud-Stand laden.
 // Der Browser-LocalStorage ist nur ein Offline-Cache, nicht eine zweite Datenquelle.
 function refreshFromCloudWhenActive() {
-  if (cloudToken && !cloudApplying) cloudPull({ silent: true });
+  if (legacySnapshotSyncEnabled() && cloudToken && !cloudApplying) cloudPull({ silent: true });
 }
 window.addEventListener('focus', refreshFromCloudWhenActive);
 document.addEventListener('visibilitychange', () => {
@@ -117,6 +124,7 @@ document.addEventListener('visibilitychange', () => {
 function setCloudMarker(at) { if (at) localStorage.setItem('mt-cloud-synced-at', at); }
 
 async function cloudPush() {
+  if (!legacySnapshotSyncEnabled()) return;
   if (!cloudToken) return;
   setCloudStatus('Synchronisiere…');
   const snap = cloudSnapshot();
@@ -139,6 +147,7 @@ async function cloudPush() {
 }
 
 async function cloudPull(opts = {}) {
+  if (!legacySnapshotSyncEnabled()) return null;
   if (!cloudToken) return null;
   try {
     const { data: sessionData } = await sb.auth.getSession();
@@ -162,6 +171,7 @@ async function cloudPull(opts = {}) {
 }
 
 async function cloudAfterLogin(status) {
+  if (!legacySnapshotSyncEnabled()) return;
   status = status || setCloudStatus;
   renderCloudUI();
   status('Hole Cloud-Daten…');
@@ -254,6 +264,7 @@ function cloudResend()      { cloudResendWith(document.getElementById('cloud-ema
 function loginCloudResend() { cloudResendWith(document.getElementById('login-cloud-email').value, loginCloudStatus); }
 
 async function cloudSignOut() {
+  if (typeof endActiveSession === 'function' && currentUser) await endActiveSession({ showLoginScreen: false });
   await sb.auth.signOut();
   cloudToken = null; cloudEmail = null; cloudLastSync = null;
   showLogin();

@@ -83,8 +83,7 @@ function addPreset(name) {
     servingSize: p.serving,
     unit: p.unit ? { ...p.unit } : null,
   });
-  save();
-  renderLibrary(document.getElementById('lib-search').value);
+  save(() => renderLibrary(document.getElementById('lib-search').value));
 }
 
 // ===== START =====

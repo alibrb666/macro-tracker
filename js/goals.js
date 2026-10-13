@@ -17,7 +17,7 @@ function saveGoals(btn) {
     fat:     parseFloat(document.getElementById('goal-fat').value)     || 65,
     sugars:  parseFloat(document.getElementById('goal-sugars').value)  || 50,
   };
-  save(); renderToday();
+  save(() => renderToday());
   if (!btn) return;
   const orig = btn.textContent;
   btn.textContent = '✅ Gespeichert!';
@@ -182,10 +182,7 @@ function importData(e) {
       const parsed = JSON.parse(ev.target.result);
       if (!parsed.foods || !parsed.log || !parsed.goals) throw new Error('Ungültiges Format');
       db = Object.assign(EMPTY_DB(), parsed);
-      save();
-      renderToday();
-      renderLibrary();
-      loadGoalsForm();
+      save(() => { renderToday(); renderLibrary(); loadGoalsForm(); });
       status.style.display = 'block';
       status.style.background = 'rgba(16,185,129,.12)';
       status.style.color = 'var(--green)';

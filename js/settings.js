@@ -10,10 +10,7 @@ function setTheme(themeKey) {
   if (!THEMES[themeKey]) themeKey = 'violet';
   if (!db) db = EMPTY_DB();
   db.theme = themeKey;
-  save();
-  applyTheme(themeKey);
-  renderSettingsModal();
-  showToast(`🎨 Theme auf ${THEMES[themeKey].name} geändert!`, 'success');
+  save(() => { applyTheme(themeKey); renderSettingsModal(); showToast(`🎨 Theme auf ${THEMES[themeKey].name} geändert!`, 'success'); });
 }
 
 function applyTheme(themeKey) {
@@ -51,11 +48,7 @@ function setMacroStrategy(stratKey) {
     sugars: db.goals.sugars == null ? 50 : db.goals.sugars,
   };
 
-  save();
-  loadGoalsForm();
-  refreshAll();
-  renderSettingsModal();
-  showToast(`🎯 Strategie "${strat.name}" angewendet (${proteinG}g P / ${carbsG}g C / ${fatG}g F)!`, 'success');
+  save(() => { loadGoalsForm(); refreshAll(); renderSettingsModal(); showToast(`🎯 Strategie "${strat.name}" angewendet (${proteinG}g P / ${carbsG}g C / ${fatG}g F)!`, 'success'); });
 }
 
 function openSettingsModal() {

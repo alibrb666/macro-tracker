@@ -16,8 +16,80 @@ Voraussetzung für CLN-03/CLN-04.
 - Die anfänglich von `npm audit` gemeldeten kritischen transitive Vitest-3/
   Tinypool-Befunde wurden durch Vitest 5.0.4 behoben; der anschließende Audit
   meldet 0 Vulnerabilities.
-- Kein GitHub-Actions-Lauf wurde in diesem Auftrag ausgelöst; der CI-Status ist
-  daher **konfiguriert, aber extern noch nicht bestätigt**.
+- Der GitHub-Actions-Lauf des QA-Pull-Requests war erfolgreich: `Quality /
+  frontend` und `Quality / legacy-backend` sind bestätigt grün.
+
+## SYNC-01A — Architekturplanung (abgeschlossen, 13.10.2026)
+
+- Ist-Analyse, Risiken P0–P3 und Zielentscheidung: `docs/SYNC_ARCHITECTURE.md`.
+- Additiver Migrations-, Rollback- und Testplan für SYNC-01B bis SYNC-01E:
+  `docs/SYNC_MIGRATION_PLAN.md`.
+- ADR: `docs/adr/0001-versioned-outbox-sync.md`.
+- Empfehlung: **GO für SYNC-01B** (nur lokale IndexedDB-Projektion/Outbox,
+  Feature Flag und Tests). **NO-GO für SYNC-01C–E**, bis ein autorisierter
+  Supabase-Stagingzugang, RLS-Review und der Produkt-Owner-Freigabe für die
+  additive Datenbankmigration vorliegen.
+
+## SYNC-01B — Lokale IndexedDB-Projektion und Outbox (abgeschlossen, 13.10.2026)
+
+- Implementiert: `js/sync-store.js` persistiert die benutzergebundene
+  Projektion, eine eindeutige queued Operation und Statusmetadaten atomar in
+  IndexedDB. `SyncWorker` serialisiert lokale Vorgänge und verweigert einen
+  Konto-Wechsel ohne vorherigen Stopp.
+- Schutz: LocalStorage bleibt während der Migration erhalten und wird nur nach
+  erfolgreichem IndexedDB-Commit gespiegelt. Ein echter IndexedDB-Ausfall wird
+  als Fehler behandelt, nicht als Speichererfolg. Es gibt keinen Cloud-Sender,
+  keine Änderung an Supabase, keine SQL-Migration und keinen Legacy-Sync-Ersatz.
+- Flag: `CONFIG.SYNC_V2_ENABLED` ist standardmäßig `false`; es lässt sich nicht
+  über einen browserlokalen Wert aktivieren. `queued` bedeutet nur lokal
+  dauerhaft gespeichert, nie cloudbestätigt.
+- Verifiziert: 15 Vitest-Tests einschließlich Outbox-Atomizität, stabiler IDs,
+  serieller Writes, User-Isolation und IndexedDB-Ausfall; Syntax, Playwright-
+  Smokes und Maven-Tests werden vor Abschluss nochmals vollständig ausgeführt.
+- Nächster freigabepflichtiger Schritt: **SYNC-01C** (additive
+  Supabase-Revision/RPC und serverseitige Idempotenz). Kein Cloud-Rollout vor
+  mindestens SYNC-01C bis SYNC-01E.
+
+### SYNC-01B-FIX (13.10.2026)
+
+- IndexedDB wird bei aktivem Flag vor jedem LocalStorage-Fallback geprüft;
+  eine vorhandene Projektion wird in den aktiven Zustand übernommen. Fehlende
+  Projektion, Outbox oder Metadaten erzeugen einen schreibgeschützten
+  Recovery-Zustand statt eines automatischen Imports oder Überschreibens.
+- Alle produktiven `save()`-Aufrufstellen führen UI-Erfolg, Rendern und das
+  Schließen von Dialogen im V2-Pfad erst nach dem IndexedDB-Commit aus. Ein
+  Fehler stellt die letzte dauerhafte Projektion wieder her.
+- V2 blockiert den Legacy-Snapshot-Pull/-Push vollständig. Fehler beim
+  LocalStorage-Mirror ändern einen erfolgreichen IndexedDB-Commit nicht.
+- Die lokale Revision schützt mehrere Tabs konservativ: Ein veralteter Worker
+  darf keine Projektion überschreiben und muss stattdessen neu laden. Eine
+  konfliktauflösende Mehrtab-UX bleibt SYNC-01D.
+
+### SYNC-01B-FIX2 (13.10.2026)
+
+- Jede V2-Operation ist an Nutzer und Auth-Generation gebunden. Verspätete
+  Save-Ergebnisse einer beendeten Sitzung dürfen weder `db` noch UI-Callbacks
+  einer neuen Sitzung verändern; Session-Ablauf stoppt den lokalen Worker.
+- Revision-Konflikte lesen die aktuelle Durable-Projektion neu ein; Callback-
+  Fehler nach einem Commit werden protokolliert, aber nicht als Speicherfehler
+  behandelt. Die Integritätsprüfung validiert nun Projektion, Metadaten,
+  Outbox-Revisionen, Payloads und Operation-IDs strenger.
+
+### SYNC-01B-TESTGATE (13.10.2026)
+
+- Drei isolierte V2-Playwright-Szenarien laufen jeweils in Desktop- und
+  Mobile-Chromium: IndexedDB-first nach LocalStorage-Verlust und Reload,
+  verspäteter Save beim Sessionwechsel sowie blockierter Legacy-Cloudpfad.
+- Die V2-Aktivierung wird ausschließlich durch die lokale Playwright-Route für
+  `js/constants.js` simuliert. Der auslieferbare Quellwert bleibt `false`.
+- Verbleibende Aktivierungsblocker (P2/P3): Browser-Quota-/VersionError,
+  Logout oder Session-Ablauf während einer echten verzögerten IndexedDB-
+  Transaktion, zwei reale Tabs mit Revisionskonflikt, Browser-Crash an der
+  Transaktionsgrenze, vollständiger Auth-Redirect sowie Konflikt-UI/Export.
+  Diese Szenarien bleiben bis SYNC-01C–01E beziehungsweise SYNC-01D
+  freigabepflichtig; V2 bleibt bis dahin deaktiviert.
+- Neue Regressionen decken fehlenden LocalStorage, unvollständige Durable
+  Records, Mirror-Fehler, Fehler ohne Erfolgs-Callback und den Default-Flag ab.
 
 ## CLN-01 — Risikoarme lokale Hygiene
 

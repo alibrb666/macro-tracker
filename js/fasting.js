@@ -11,19 +11,12 @@ function getFastingPlan() {
 function setFastingPlan(planKey) {
   if (!FASTING_PLANS[planKey]) planKey = '16:8';
   db.fastingPlan = planKey;
-  save();
-  renderFastingWidget();
-  renderFastingPage();
-  showToast(`⏱️ Fastenplan auf ${FASTING_PLANS[planKey].name} gesetzt!`, 'success');
+  save(() => { renderFastingWidget(); renderFastingPage(); showToast(`⏱️ Fastenplan auf ${FASTING_PLANS[planKey].name} gesetzt!`, 'success'); });
 }
 
 function startFast() {
   db.fastingStart = new Date().toISOString();
-  save();
-  startFastingTimer();
-  renderFastingWidget();
-  renderFastingPage();
-  showToast('⏱️ Fasten-Timer gestartet! Viel Erfolg!', 'success');
+  save(() => { startFastingTimer(); renderFastingWidget(); renderFastingPage(); showToast('⏱️ Fasten-Timer gestartet! Viel Erfolg!', 'success'); });
 }
 
 function stopFast() {
@@ -41,11 +34,7 @@ function stopFast() {
   });
 
   db.fastingStart = null;
-  save();
-  stopFastingTimer();
-  renderFastingWidget();
-  renderFastingPage();
-  showToast(`🎉 Fasten beendet! ${elapsedHours} Stunden gefastet!`, 'success');
+  save(() => { stopFastingTimer(); renderFastingWidget(); renderFastingPage(); showToast(`🎉 Fasten beendet! ${elapsedHours} Stunden gefastet!`, 'success'); });
 }
 
 function startFastingTimer() {

@@ -23,10 +23,7 @@ function addWater(amountMl) {
   if (!db.waterEntries) db.waterEntries = {};
   if (!db.waterEntries[key]) db.waterEntries[key] = [];
   db.waterEntries[key].push({ amount: amountMl, at: new Date().toISOString() });
-  save();
-  renderToday();
-  renderWaterPage();
-  showToast(`💧 ${amountMl > 0 ? '+' : ''}${amountMl} ml Wasser getrackt!`, 'success');
+  save(() => { renderToday(); renderWaterPage(); showToast(`💧 ${amountMl > 0 ? '+' : ''}${amountMl} ml Wasser getrackt!`, 'success'); });
 }
 
 function addWaterQuick(amountMl) {
@@ -38,20 +35,14 @@ function resetWater() {
   if (!db.water) db.water = {};
   db.water[key] = 0;
   if (db.waterEntries) db.waterEntries[key] = [];
-  save();
-  renderToday();
-  renderWaterPage();
-  showToast('💧 Wasser-Tracker zurückgesetzt', 'warning');
+  save(() => { renderToday(); renderWaterPage(); showToast('💧 Wasser-Tracker zurückgesetzt', 'warning'); });
 }
 
 function setWaterTarget(ml) {
   ml = parseInt(ml, 10);
   if (isNaN(ml) || ml < 500) ml = 2500;
   db.waterGoal = ml;
-  save();
-  renderToday();
-  renderWaterPage();
-  showToast(`💧 Wasserziel auf ${ml} ml gesetzt!`, 'success');
+  save(() => { renderToday(); renderWaterPage(); showToast(`💧 Wasserziel auf ${ml} ml gesetzt!`, 'success'); });
 }
 
 function renderWaterModule(targetId) {
