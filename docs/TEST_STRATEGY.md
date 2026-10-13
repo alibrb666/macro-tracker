@@ -22,7 +22,7 @@ Tokens oder Daten verwendet.
 | Ebene | Werkzeug | Abdeckung |
 |---|---|---|
 | Unit | Vitest + jsdom/vm | BMR/TDEE/Makro-Floors, Nährwertvalidierung, Datumsschlüssel, LocalStorage-Serialisierung und Fehlertoleranz |
-| Integration | Vitest + Supabase-Doppelgänger | Snapshot-Upsert, Session-Ablauf, Speicherfehler und wiederholtes Pulling |
+| Integration | Vitest + Supabase-Doppelgänger/fake-indexeddb | Snapshot-Upsert, Session-Ablauf, Speicherfehler, wiederholtes Pulling sowie transaktionale lokale Projektion/Outbox, IndexedDB-first-Recovery, User-Isolation, Mirror- und IndexedDB-Ausfall |
 | Browser-Smoke | Playwright/Chromium, Desktop und mobil | App-Start im Offline-Modus, Navigation, Dialoge, Lebensmittel-/Eintrags-CRUD, Kalorienanzeige, mobile Shell |
 | Legacy-Backend | Maven/JUnit | JWT-Validierung und isolierter Datenfluss bleiben ausgeführt, solange das Backend existiert |
 
@@ -34,9 +34,18 @@ Mehrgeräte-Konflikt gegen Supabase sind ohne separates Staging-Projekt und
 Testkonten nicht automatisiert. Sie sind Release-Abnahmekriterien, keine
 Produktionsautomatisierung. Der komplette JSON-Snapshot nutzt weiterhin
 "last write wins"; die Tests dokumentieren Wiederholung, nicht fachliche
-Konfliktauflösung.
+Konfliktauflösung. SYNC-01B prüft ausschließlich lokale Dauerhaftigkeit; der
+noch nicht freigegebene Cloud-Worker mit Backoff, Serverrevision und
+Konfliktbehandlung ist Gegenstand von SYNC-01C bis SYNC-01E.
 
 ## CI
+
+`tests/e2e/sync-v2.spec.js` ersetzt ausschließlich im Playwright-Router die
+lokal ausgelieferte `js/constants.js`-Antwort. Dadurch wird V2 nur im isolierten
+Browser-Test aktiviert; weder Produktivcode, Storage, URL noch UI enthalten
+einen Aktivierungsschalter. Die Suite verwendet echte Browser-IndexedDB für
+Bootstrap nach Reload, einen kontrolliert verspäteten Save beim Benutzerwechsel
+und die Sperre des Legacy-Cloudpfads.
 
 `.github/workflows/quality.yml` installiert mit Lockfile, prüft JavaScript,
 Unit-/Integrationstests, isolierte Browser-Smokes und `git diff --check`.

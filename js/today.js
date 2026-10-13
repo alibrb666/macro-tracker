@@ -251,7 +251,7 @@ function deleteEntry(i) {
   entries.forEach(e => { if (!e.meal) e.meal = 'hauptspeise'; });
   entries.splice(i, 1);
   db.log[viewKey()] = entries;
-  save(); renderToday();
+  save(() => renderToday());
 }
 
 function renderSuggestions(allEntries, tot, g) {
@@ -407,5 +407,5 @@ function copyDayEntries(dateKey) {
   const destK = viewKey();
   if (!db.log[destK]) db.log[destK] = [];
   src.forEach(e => db.log[destK].push({ ...e }));
-  save(); closeModal('modal-copy-day'); renderToday();
+  save(() => { closeModal('modal-copy-day'); renderToday(); });
 }

@@ -3,6 +3,7 @@
 // deliberately separate, single-device guest mode.
 
 let currentUser = null;
+let authSessionGeneration = 0;
 const GUEST_USER = { id: 'local-guest', name: 'Gast', emoji: '🥗', isGuest: true };
 
 async function init() {
@@ -18,7 +19,23 @@ async function init() {
   } else showLogin();
 }
 
+function sessionIsActive(userId, generation) {
+  return currentUser?.id === userId && authSessionGeneration === generation;
+}
+
+async function endActiveSession({ showLoginScreen = true } = {}) {
+  const previousUser = currentUser;
+  authSessionGeneration += 1;
+  currentUser = null;
+  if (previousUser && !previousUser.isGuest) await SyncWorker.stop(previousUser.id);
+  if (showLoginScreen) {
+    document.getElementById('login-screen').classList.remove('hidden');
+    loginShowHome();
+  }
+}
+
 function showLogin() {
+  authSessionGeneration += 1;
   currentUser = null;
   document.getElementById('login-screen').classList.remove('hidden');
   loginShowHome();
@@ -32,7 +49,7 @@ function showLoginView(id) {
 }
 
 function loginShowHome() { showLoginView('login-home'); }
-function loginContinueOffline() { enterApp(GUEST_USER); }
+function loginContinueOffline() { void enterApp(GUEST_USER); }
 
 function loginShowCloud() {
   showLoginView('login-cloud');
@@ -120,7 +137,7 @@ async function resolvePostLogin() {
   const profile = await ensureCloudProfile(user, fallbackName);
   localStorage.removeItem(PENDING_NAME_KEY);
   migrateLocalDataToAccount(user.id);
-  enterApp({ id: user.id, name: profile?.display_name || fallbackName,
+  await enterApp({ id: user.id, name: profile?.display_name || fallbackName,
     emoji: profile?.avatar || '🥗', email: user.email || '' });
 }
 
@@ -160,9 +177,35 @@ async function ensureCloudProfile(user, fallbackName) {
   }
 }
 
-function enterApp(user) {
+async function enterApp(user) {
+  const previousUser = currentUser;
+  const generation = ++authSessionGeneration;
+  if (previousUser && previousUser.id !== user.id && !previousUser.isGuest) await SyncWorker.stop(previousUser.id);
+  if (authSessionGeneration !== generation) return;
   currentUser = user;
-  loadUserDB(user.id);
+  const durableMode = !user.isGuest && typeof syncV2Enabled === 'function' && syncV2Enabled();
+  if (durableMode) {
+    // Do not persist an empty/corrupt legacy cache before the durable state is
+    // inspected. IndexedDB is authoritative while the experimental flag is on.
+    loadUserDB(user.id, { persistFallback: false });
+    try {
+      const boot = await SyncWorker.start(user.id, db);
+      if (!sessionIsActive(user.id, generation)) return;
+      if (boot.recovery) {
+        console.error('Sync-store recovery required:', boot.recovery.code);
+        alert(`⚠️ ${boot.recovery.message} Bitte nicht weiter speichern und den Support kontaktieren.`);
+      } else if (boot.projection) {
+        db = boot.projection;
+        mirrorUserDB(user.id, db);
+      }
+    } catch (error) {
+      if (!sessionIsActive(user.id, generation)) return;
+      console.error('Sync-store bootstrap failed:', error);
+      alert('⚠️ Lokale Synchronisierung konnte nicht sicher wiederhergestellt werden. Bitte nicht weiter speichern.');
+    }
+  } else {
+    loadUserDB(user.id);
+  }
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('today-date').textContent =
     new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -172,6 +215,6 @@ function enterApp(user) {
 }
 
 async function logout() {
+  await endActiveSession({ showLoginScreen: !cloudToken });
   if (cloudToken) await cloudSignOut();
-  else showLogin();
 }

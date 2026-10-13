@@ -176,10 +176,7 @@ function saveWeight(applyGoals) {
       db.goals = { kcal: target.kcal, protein: target.protein, carbs: target.carbs, fat: target.fat, sugars: db.goals.sugars == null ? 50 : db.goals.sugars };
     }
   }
-  save();
-  closeModal('modal-weight');
-  renderBedarf();
-  loadGoalsForm();
+  save(() => { closeModal('modal-weight'); renderBedarf(); loadGoalsForm(); });
   renderToday();
 }
 
@@ -194,6 +191,5 @@ function deleteWeight(date) {
     db.profile.maintenance = needs.maintenance;
     db.profile.diet = needs.diet;
   }
-  save();
-  renderBedarf();
+  save(() => renderBedarf());
 }

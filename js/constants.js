@@ -11,6 +11,9 @@ const CONFIG = {
   BULK_FAT_MULTIPLIER: 1.1,
   BULK_FAT_MAX_PER_KG: 1.1,
   SYNC_DEBOUNCE_MS: 1500,
+  // SYNC-01B: local durable projection/outbox. Keep disabled until the
+  // server-side revision protocol and rollout gates (SYNC-01C–E) are approved.
+  SYNC_V2_ENABLED: false,
   ACTIVITY_FACTORS: {
     1.2: 'Sitzend (wenig/kein Sport)',
     1.375: 'Leicht aktiv (1-3x/Woche)',

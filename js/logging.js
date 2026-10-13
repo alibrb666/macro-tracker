@@ -88,7 +88,7 @@ function addLogEntry() {
     unitPlural: activeLogFood.unit ? (activeLogFood.unit.plural || activeLogFood.unit.label) : null,
     kcal: m.kcal, protein: m.protein, carbs: m.carbs, fat: m.fat
   });
-  save(); closeModal('modal-log'); renderToday();
+  save(() => { closeModal('modal-log'); renderToday(); });
 }
 
 // Edit Entry inline
@@ -138,7 +138,7 @@ function saveEditEntry() {
   e.units  = unitCount;
   e.kcal = m.kcal; e.protein = m.protein; e.carbs = m.carbs; e.fat = m.fat;
   
-  save(); closeModal('modal-edit-entry'); renderToday();
+  save(() => { closeModal('modal-edit-entry'); renderToday(); });
 }
 
 // The current modal markup uses pills and an inline amount preview.  These
@@ -232,7 +232,7 @@ function logFood() {
     units: isPiece ? amount : null, unitLabel: isPiece ? activeLogFood.unit.label : null,
     unitPlural: isPiece ? (activeLogFood.unit.plural || activeLogFood.unit.label) : null, ...macros
   });
-  save(); closeModal('modal-log'); renderToday(); showToast('Mahlzeit hinzugefügt');
+  save(() => { closeModal('modal-log'); renderToday(); showToast('Mahlzeit hinzugefügt'); });
 }
 
 function openEditEntry(idx) {
@@ -279,13 +279,13 @@ function saveEditEntry() {
   const piece = document.getElementById('edit-unit-toggle').dataset.unit === 'piece';
   const grams = piece ? amount * food.unit.g : amount;
   Object.assign(entry, calcMacros(food, grams), { amount: grams, units: piece ? amount : null, unitLabel: piece ? food.unit.label : null, unitPlural: piece ? (food.unit.plural || food.unit.label) : null });
-  save(); closeModal('modal-edit'); renderToday();
+  save(() => { closeModal('modal-edit'); renderToday(); });
 }
 
 function deleteEditEntry() {
   const entries = db.log[viewKey()] || [];
   if (editLogIdx < 0 || !entries[editLogIdx]) return;
-  entries.splice(editLogIdx, 1); save(); closeModal('modal-edit'); renderToday();
+  entries.splice(editLogIdx, 1); save(() => { closeModal('modal-edit'); renderToday(); });
 }
 
 // ===== Drag & Drop Logic =====
@@ -319,6 +319,6 @@ function dragDrop(e, mealId) {
   const idx = entries.findIndex(x => (x._id || entries.indexOf(x)) == id);
   if (idx !== -1) {
     entries[idx].meal = mealId;
-    save(); renderToday();
+    save(() => renderToday());
   }
 }

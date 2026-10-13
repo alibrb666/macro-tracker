@@ -87,7 +87,7 @@ function saveWorkout() {
   if (!db.workouts) db.workouts = {};
   if (!db.workouts[date]) db.workouts[date] = [];
   db.workouts[date].push(entry);
-  save(); renderWorkoutPage(); renderToday(); showToast('🏋️ Training gespeichert', 'success');
+  save(() => { renderWorkoutPage(); renderToday(); showToast('🏋️ Training gespeichert', 'success'); });
 }
 
-function deleteWorkout(index) { db.workouts[viewKey()].splice(index, 1); save(); renderWorkoutPage(); renderToday(); }
+function deleteWorkout(index) { db.workouts[viewKey()].splice(index, 1); save(() => { renderWorkoutPage(); renderToday(); }); }

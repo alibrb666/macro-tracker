@@ -482,12 +482,12 @@ function saveFood() {
   } else {
     db.foods.push(item);
   }
-  save(); closeModal('modal-food'); renderLibrary(document.getElementById('lib-search').value);
+  save(() => { closeModal('modal-food'); renderLibrary(document.getElementById('lib-search').value); });
 }
 
 function deleteFood() {
   if (confirm('Wirklich löschen? Bereits geloggte Einträge bleiben erhalten.')) {
     db.foods = db.foods.filter(x => x.id !== editFoodId);
-    save(); closeModal('modal-food'); renderLibrary(document.getElementById('lib-search').value);
+    save(() => { closeModal('modal-food'); renderLibrary(document.getElementById('lib-search').value); });
   }
 }
