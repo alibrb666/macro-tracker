@@ -1,0 +1,19 @@
+{
+  "name": "macro-tracker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "check:js": "node --check js/*.js",
+    "test:unit": "vitest run tests/unit tests/integration",
+    "test:e2e": "playwright test",
+    "test": "npm run check:js && npm run test:unit && npm run test:e2e",
+    "test:backend": "mvn -q -f backend/pom.xml test",
+    "check": "npm run test && npm run test:backend"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "jsdom": "^26.1.0",
+    "vitest": "^5.0.4"
+  }
+}
